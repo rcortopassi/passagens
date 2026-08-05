@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passagens: Brasília para Lyon, Genebra e Lisboa</title>
+<style>
+:root{
+  --fundo:#0d1117; --cartao:#161b22; --borda:#2d333b; --texto:#e6edf3;
+  --fraco:#8b949e; --azul:#4d9fff; --verde:#3fb950; --ambar:#d29922;
+  --vermelho:#f85149; --roxo:#bc8cff;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{background:var(--fundo); color:var(--texto);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:15px; line-height:1.5; padding:16px; max-width:1180px; margin:0 auto}
+h1{font-size:1.5em; font-weight:700; margin-bottom:2px}
+h2{font-size:1.1em; font-weight:600; margin:26px 0 10px}
+.sub{color:var(--fraco); font-size:.92em}
+.cartoes{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:12px; margin-top:14px}
+.cartao{background:var(--cartao); border:1px solid var(--borda);
+  border-radius:14px; padding:14px 16px}
+.cartao .dest{font-weight:700; font-size:1.05em}
+.cartao .preco{font-size:1.7em; font-weight:800; margin:2px 0}
+.cartao .det{color:var(--fraco); font-size:.88em}
+.tag{display:inline-block; border-radius:999px; padding:1px 10px;
+  font-size:.78em; font-weight:600; margin-left:6px; vertical-align:2px}
+.tag.baixo{background:#12351c; color:var(--verde)}
+.tag.alto{background:#3d1d1d; color:var(--vermelho)}
+.tag.normal{background:#262c36; color:var(--fraco)}
+.tag.velho{background:#332b12; color:var(--ambar)}
+.aviso{border-radius:12px; padding:11px 15px; margin-top:14px;
+  border:1px solid var(--borda); background:var(--cartao); font-size:.94em}
+.aviso.bom{border-color:#1f6f34; background:#10241a}
+.aviso .t{font-weight:700}
+.abas{display:flex; gap:8px; margin:10px 0}
+.aba{border:1px solid var(--borda); background:var(--cartao); color:var(--texto);
+  border-radius:999px; padding:5px 16px; cursor:pointer; font-size:.92em}
+.aba.ativa{background:#1f3a5f; border-color:var(--azul); font-weight:600}
+.rolagem{overflow-x:auto; border:1px solid var(--borda); border-radius:12px;
+  background:var(--cartao); padding:10px}
+table.mapa{border-collapse:collapse; font-size:.72em}
+table.mapa th{color:var(--fraco); font-weight:500; padding:1px 3px;
+  position:sticky; left:auto}
+table.mapa th.dur{text-align:right; padding-right:6px; position:sticky; left:0;
+  background:var(--cartao)}
+table.mapa td{width:15px; height:15px; min-width:15px; border-radius:3px;
+  border:1px solid var(--fundo); cursor:default}
+canvas{width:100%; height:auto; display:block}
+.grade2{display:grid; grid-template-columns:1fr; gap:14px}
+@media(min-width:900px){.grade2{grid-template-columns:3fr 2fr}}
+.painel{background:var(--cartao); border:1px solid var(--borda);
+  border-radius:14px; padding:14px 16px}
+table.lista{width:100%; border-collapse:collapse; font-size:.9em}
+table.lista th{color:var(--fraco); font-weight:500; text-align:left;
+  padding:4px 8px; border-bottom:1px solid var(--borda)}
+table.lista td{padding:4px 8px; border-bottom:1px solid #21262d}
+table.lista td.num{text-align:right; font-variant-numeric:tabular-nums}
+.legenda{display:flex; gap:14px; flex-wrap:wrap; color:var(--fraco);
+  font-size:.84em; margin-top:6px}
+.legenda .cor{display:inline-block; width:10px; height:10px; border-radius:2px;
+  margin-right:4px}
+.nota{color:var(--fraco); font-size:.86em; margin-top:8px}
+.metodo{color:var(--fraco); font-size:.88em; margin-top:26px;
+  border-top:1px solid var(--borda); padding-top:14px}
+.metodo p{margin-bottom:8px}
+#dica{position:fixed; display:none; background:#21262d; border:1px solid var(--borda);
+  border-radius:8px; padding:6px 10px; font-size:.82em; pointer-events:none;
+  z-index:10; max-width:300px}
+.palpite{border-left:3px solid var(--fraco); padding-left:12px; margin-top:10px;
+  color:var(--fraco); font-size:.9em}
+</style>
+</head>
+<body>
+<h1>Passagens</h1>
+<div class="sub">Brasília (BSB) para Lyon, Genebra e Lisboa; ida e volta, 2 adultos,
+econômica; partidas de 01/01/2027 a 18/03/2027 com volta até 25/03/2027
+(estadia de 7 a 14 noites). Preços em reais, TOTAL para os dois passageiros.</div>
+<div class="sub" id="carimbo"></div>
+
+<div id="alertas"></div>
+<div class="cartoes" id="cartoes"></div>
+
+<h2>Mapa de calor: quando ir</h2>
+<div class="sub">Menor preço conhecido por data de partida e duração da estadia.
+Célula apagada: ainda sem leitura. Passe o mouse para o detalhe.</div>
+<div class="abas" id="abasMapa"></div>
+<div class="rolagem" id="mapa"></div>
+<div class="legenda" id="legMapa"></div>
+
+<h2>Quando comprar: evolução do menor preço</h2>
+<div class="sub">Menor preço do dia em cada destino, entre todos os pares de datas
+já lidos, com a média móvel de 30 dias tracejada. O alerta dispara quando o
+preço cruza para baixo a média com folga de 3%.</div>
+<div class="painel"><canvas id="serie" height="320"></canvas>
+<div class="legenda" id="legSerie"></div></div>
+
+<h2>Por companhia aérea</h2>
+<div class="sub">Menor preço do dia por companhia (ou combinação vendida junta,
+como Gol com Air France), nos pares de datas sondados em detalhe.</div>
+<div class="abas" id="abasCia"></div>
+<div class="grade2">
+  <div class="painel"><canvas id="grafCia" height="300"></canvas>
+  <div class="legenda" id="legCia"></div></div>
+  <div class="painel"><table class="lista" id="tabCia"></table>
+  <div class="nota" id="notaCia"></div></div>
+</div>
+
+<h2>Referência do próprio Google</h2>
+<div class="sub">O Google publica, por rota e datas, se o preço atual está baixo,
+típico ou alto em relação ao histórico dele. Última leitura de cada par sondado.</div>
+<div class="painel"><table class="lista" id="tabIns"></table></div>
+
+<div class="palpite" id="palpite">
+<b>Palpite inicial, ainda não medido por este painel</b> (sazonalidade conhecida
+de Brasil para Europa; vai sendo substituído pela medição): partidas mais baratas
+no fim de fevereiro e na primeira quinzena de março, depois do Carnaval
+(9 de fevereiro de 2027); mais caras na primeira semana de janeiro e na semana do
+Carnaval. Melhor época provável de compra: de setembro a início de dezembro de
+2026, com a Black Friday (27/11/2026) como evento de maior chance.
+</div>
+
+<div class="metodo">
+<p><b>Método.</b> Fonte: Google Flights, lido diretamente (busca completa por par
+de datas e calendário de preços onde a rota tem cache). O preço é o da tarifa
+mais barata da econômica; em geral NÃO inclui bagagem despachada nas tarifas
+básicas de algumas companhias, e o mercado brasileiro do Google não permite
+filtrar por mala. Antes de comprar, conferir a franquia no site da companhia.</p>
+<p><b>Leituras.</b> Lisboa tem calendário completo no Google e é lida inteira a
+cada rodada. Lyon e Genebra não têm cache de calendário nem no site oficial:
+são lidas por busca completa, em rodízio de pares de datas, então cada célula
+do mapa tem uma idade; o painel a mostra. Preço vigente é o da última rodada;
+leitura velha fica marcada.</p>
+<p><b>Alerta.</b> Aviso comum quando o menor preço vigente cruza para baixo a
+média móvel de 30 dias com folga de 3%, com silêncio de 48h; aviso forte quando
+fica abaixo do percentil 10 de tudo que já foi visto no destino. Nas duas
+primeiras semanas não há base para média e o painel diz isso em vez de inventar.</p>
+<p id="diagnostico"></p>
+</div>
+<div id="dica"></div>
+
+<script>
+"use strict";
+const H = /*__DADOS__*/{};
+const DESTINOS = ["LYS","GVA","LIS"];
+const NOME = {LYS:"Lyon", GVA:"Genebra", LIS:"Lisboa"};
+const COR = {LYS:"#4d9fff", GVA:"#3fb950", LIS:"#d29922"};
+const BASE_DIA = new Date(Date.UTC(2026,7,1));   // 2026-08-01
+const DUR_MIN=7, DUR_MAX=14;
+const fmt = n => "R$ " + Math.round(n).toLocaleString("pt-BR");
+// tfs do Google Voos (protobuf minimo), para o link "abrir no Google Voos"
+function tfsGoogle(dest, ida, volta){
+  const enc = new TextEncoder();
+  const vint = n => { const o=[]; do { let b=n&127; n>>=7; o.push(b|(n?128:0)); } while(n); return o; };
+  const key = (f,w)=>vint((f<<3)|w);
+  const len = (f,p)=>[...key(f,2),...vint(p.length),...p];
+  const str = (f,s)=>len(f,[...enc.encode(s)]);
+  const int = (f,v)=>[...key(f,0),...vint(v)];
+  const airport = (f,c)=>len(f,[...int(1,1),...str(2,c)]);
+  const leg = (dt,a,b)=>len(3,[...str(2,dt),...airport(13,a),...airport(14,b)]);
+  const bytes = [...int(1,28),...int(2,2),
+    ...leg(ida,"BSB",dest),...leg(volta,dest,"BSB"),
+    ...len(8,[1,1]),...int(9,1),...int(14,1),...int(19,1)];
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function linkGoogle(dest, ida, volta){
+  return "https://www.google.com/travel/flights?tfs=" + tfsGoogle(dest, ida, volta) +
+         "&hl=pt-BR&gl=BR&curr=BRL";
+}
+const dataDeIdx = i => { const d = new Date(BASE_DIA); d.setUTCDate(d.getUTCDate()+i); return d; };
+const dstr = d => d.toISOString().slice(0,10);
+const dbr = s => s.slice(8,10)+"/"+s.slice(5,7);
+
+/* ---------- preparo das series ---------- */
+// radar: "DEST|dur" -> {"2027-01-15": [[idx,preco],...]}
+// menor preco do dia por destino, e ultimo dia de leitura por destino
+function seriesDestino(){
+  const porDest = {};
+  for (const dest of DESTINOS) porDest[dest] = {porDia:{}, ultimoIdx:-1, celulas:{}};
+  for (const [ch, porData] of Object.entries(H.radar || {})){
+    const [dest, durS] = ch.split("|");
+    if (!porDest[dest]) continue;
+    for (const [ida, serie] of Object.entries(porData)){
+      for (const [idx, preco] of serie){
+        const d = porDest[dest];
+        if (!(idx in d.porDia) || preco < d.porDia[idx]) d.porDia[idx] = preco;
+        if (idx > d.ultimoIdx) d.ultimoIdx = idx;
+      }
+      const ult = serie[serie.length-1];
+      porDest[dest].celulas[ida+"|"+durS] = {preco:ult[1], idx:ult[0], serie:serie};
+    }
+  }
+  return porDest;
+}
+const SD = seriesDestino();
+const HOJE_IDX = Math.max(...DESTINOS.map(d=>SD[d].ultimoIdx), 0);
+
+function mediaMovel(porDia, ateIdx, janela){
+  let soma=0, n=0;
+  for (let i=ateIdx-janela+1; i<=ateIdx; i++)
+    if (i in porDia){ soma+=porDia[i]; n++; }
+  return n>=Math.min(10, janela/3) ? soma/n : null;
+}
+function percentil(porDia, p){
+  const v = Object.values(porDia).sort((a,b)=>a-b);
+  if (!v.length) return null;
+  return v[Math.min(v.length-1, Math.floor(p/100*v.length))];
+}
+
+/* ---------- carimbo e cartoes ---------- */
+document.getElementById("carimbo").textContent =
+  "Última coleta: " + (H.ultima ? H.ultima.replace("T"," ").slice(0,16) : "nenhuma ainda");
+
+function cartoes(){
+  const el = document.getElementById("cartoes");
+  const vig = {};
+  for (const dest of DESTINOS){
+    const d = SD[dest];
+    // menor vigente: entre celulas lidas no ultimo dia de leitura do destino
+    let melhor=null;
+    for (const [ch,c] of Object.entries(d.celulas))
+      if (c.idx >= d.ultimoIdx-1 && (!melhor || c.preco < melhor.preco))
+        melhor = {...c, ch};
+    vig[dest] = melhor;
+  }
+  for (const dest of DESTINOS){
+    const d = SD[dest], m = vig[dest];
+    const card = document.createElement("div");
+    card.className = "cartao";
+    card.style.borderTop = "3px solid " + COR[dest];
+    let corpo = `<div class="dest">${NOME[dest]}</div>`;
+    if (!m){
+      corpo += `<div class="preco">sem leitura</div>
+        <div class="det">ainda não há coleta para este destino</div>`;
+    } else {
+      const [ida,dur] = m.ch.split("|");
+      const volta = new Date(ida+"T12:00:00Z"); volta.setUTCDate(volta.getUTCDate()+ +dur);
+      const dias = Object.keys(d.porDia).length;
+      const mm = mediaMovel(d.porDia, d.ultimoIdx, 30);
+      let tag = "";
+      if (mm !== null){
+        if (m.preco < mm*0.97) tag = `<span class="tag baixo">abaixo da média</span>`;
+        else if (m.preco > mm*1.05) tag = `<span class="tag alto">acima da média</span>`;
+        else tag = `<span class="tag normal">na média</span>`;
+      } else tag = `<span class="tag normal">coletando base: ${dias} de 14 dias</span>`;
+      const idade = HOJE_IDX - m.idx;
+      const vtag = idade>1 ? `<span class="tag velho">leitura de ${idade} dias atrás</span>` : "";
+      corpo += `<div class="preco" style="color:${COR[dest]}">${fmt(m.preco)}${tag}${vtag}</div>
+        <div class="det">menor vigente: sair ${dbr(ida)}, voltar ${dbr(dstr(volta))}
+        (${dur} noites)${mm!==null ? "; média 30d " + fmt(mm) : ""}
+        <br><a href="${linkGoogle(dest, ida, dstr(volta))}" target="_blank"
+        rel="noopener" style="color:${COR[dest]}">abrir no Google Voos</a></div>`;
+    }
+    card.innerHTML = corpo;
+    el.appendChild(card);
+  }
+  // premio de Lyon e Genebra sobre Lisboa
+  if (vig.LIS && (vig.LYS || vig.GVA)){
+    const linhas = [];
+    for (const dest of ["LYS","GVA"]) if (vig[dest]){
+      const dif = vig[dest].preco - vig.LIS.preco;
+      const pct = Math.round(100*dif/vig.LIS.preco);
+      linhas.push(`${NOME[dest]} custa hoje ${fmt(dif)} (${pct}%) a mais que Lisboa`);
+    }
+    if (linhas.length){
+      const av = document.createElement("div");
+      av.className = "aviso";
+      av.innerHTML = `<span class="t">Prêmio dos destinos:</span> ${linhas.join("; ")}.`;
+      document.getElementById("alertas").appendChild(av);
+    }
+  }
+  // alertas de abaixo da media / percentil
+  for (const dest of DESTINOS){
+    const d = SD[dest], m = vig[dest];
+    if (!m) continue;
+    const mm = mediaMovel(d.porDia, d.ultimoIdx, 30);
+    const p10 = percentil(d.porDia, 10);
+    const dias = Object.keys(d.porDia).length;
+    if (dias >= 14 && p10 !== null && m.preco <= p10){
+      const av = document.createElement("div");
+      av.className = "aviso bom";
+      av.innerHTML = `<span class="t">AVISO FORTE, ${NOME[dest]}:</span> ${fmt(m.preco)}
+        está no piso histórico deste painel (percentil 10: ${fmt(p10)}).`;
+      document.getElementById("alertas").appendChild(av);
+    } else if (mm !== null && dias >= 14 && m.preco < mm*0.97){
+      const av = document.createElement("div");
+      av.className = "aviso bom";
+      av.innerHTML = `<span class="t">${NOME[dest]} abaixo da média:</span>
+        ${fmt(m.preco)} contra média 30d de ${fmt(mm)}.`;
+      document.getElementById("alertas").appendChild(av);
+    }
+  }
+}
+cartoes();
+
+/* ---------- mapa de calor ---------- */
+let mapaDest = "LIS";
+function abasMapa(){
+  const el = document.getElementById("abasMapa");
+  el.innerHTML = "";
+  for (const dest of DESTINOS){
+    const b = document.createElement("button");
+    b.className = "aba" + (dest===mapaDest ? " ativa" : "");
+    b.textContent = NOME[dest];
+    b.onclick = () => { mapaDest = dest; abasMapa(); mapa(); };
+    el.appendChild(b);
+  }
+}
+function corPreco(p, min, max){
+  if (p==null) return "transparent";
+  const t = Math.max(0, Math.min(1, (p-min)/Math.max(1,max-min)));
+  const h = 120*(1-t);       // verde -> vermelho
+  return `hsl(${h} 65% ${38-10*t}%)`;
+}
+const dica = document.getElementById("dica");
+function mapa(){
+  const cont = document.getElementById("mapa");
+  const d = SD[mapaDest];
+  const datas = [];
+  for (let dt = new Date(Date.UTC(2027,0,1)); dt <= new Date(Date.UTC(2027,2,18));
+       dt.setUTCDate(dt.getUTCDate()+1)) datas.push(dstr(new Date(dt)));
+  const precos = Object.values(d.celulas).map(c=>c.preco);
+  if (!precos.length){ cont.innerHTML =
+    `<div class="nota">ainda sem leituras para ${NOME[mapaDest]}</div>`; return; }
+  const min = Math.min(...precos), max = Math.max(...precos);
+  let html = "<table class='mapa'><tr><th class='dur'></th>";
+  for (const dt of datas)
+    html += `<th>${dt.slice(8,10)==="01" || dt===datas[0] ? dbr(dt) : (dt.slice(8,10)%5===0? dt.slice(8,10):"")}</th>`;
+  html += "</tr>";
+  for (let dur=DUR_MIN; dur<=DUR_MAX; dur++){
+    html += `<tr><th class='dur'>${dur}n</th>`;
+    for (const dt of datas){
+      const c = d.celulas[dt+"|"+dur];
+      const cor = c ? corPreco(c.preco, min, max) : "#1c2128";
+      const idade = c ? HOJE_IDX - c.idx : null;
+      html += `<td style="background:${cor}" data-d="${dt}" data-dur="${dur}"
+        data-p="${c?c.preco:''}" data-i="${idade??''}"></td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</table>";
+  cont.innerHTML = html;
+  cont.querySelectorAll("td").forEach(td=>{
+    td.onmousemove = ev => {
+      const p = td.dataset.p;
+      dica.style.display = "block";
+      dica.style.left = (ev.clientX+14)+"px";
+      dica.style.top = (ev.clientY+10)+"px";
+      dica.innerHTML = p
+        ? `${dbr(td.dataset.d)}/2027, ${td.dataset.dur} noites: <b>${fmt(+p)}</b>` +
+          (+td.dataset.i>1 ? `<br>leitura de ${td.dataset.i} dias atrás` :
+           +td.dataset.i===1 ? "<br>leitura de ontem" : "<br>leitura de hoje")
+        : `${dbr(td.dataset.d)}/2027, ${td.dataset.dur} noites: sem leitura`;
+    };
+    td.onmouseleave = () => dica.style.display = "none";
+  });
+  document.getElementById("legMapa").innerHTML =
+    `<span><span class="cor" style="background:hsl(120 65% 38%)"></span>${fmt(min)}</span>` +
+    `<span><span class="cor" style="background:hsl(60 65% 33%)"></span>meio</span>` +
+    `<span><span class="cor" style="background:hsl(0 65% 28%)"></span>${fmt(max)}</span>` +
+    `<span><span class="cor" style="background:#1c2128"></span>sem leitura</span>`;
+}
+abasMapa(); mapa();
+
+/* ---------- grafico de linhas generico ---------- */
+function desenhaLinhas(cv, series, opts){
+  // series: [{nome, cor, pontos:[[x,y]...], tracejada}]
+  const ctx = cv.getContext("2d");
+  const W = cv.parentElement.clientWidth - 32 || 800;
+  if (!cv.dataset.h) cv.dataset.h = cv.getAttribute("height");
+  const HT = +cv.dataset.h;
+  cv.width = W*2; cv.height = HT*2; ctx.scale(2,2);
+  cv.style.height = HT+"px";
+  ctx.clearRect(0,0,W,HT);
+  const todos = series.flatMap(s=>s.pontos);
+  if (!todos.length){ ctx.fillStyle="#8b949e"; ctx.font="13px sans-serif";
+    ctx.fillText("ainda sem dados suficientes", 20, 40); return; }
+  const xs = todos.map(p=>p[0]), ys = todos.map(p=>p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const folga = (y1-y0)*0.08 || y0*0.05; y0-=folga; y1+=folga;
+  const ML=64, MR=10, MT=10, MB=26;
+  const px = x => ML + (x1===x0 ? 0.5 : (x-x0)/(x1-x0)) * (W-ML-MR);
+  const py = y => MT + (1-(y-y0)/(y1-y0)) * (HT-MT-MB);
+  ctx.strokeStyle="#2d333b"; ctx.fillStyle="#8b949e"; ctx.font="11px sans-serif";
+  const passos = 5;
+  for (let i=0;i<=passos;i++){
+    const y = y0 + (y1-y0)*i/passos;
+    ctx.beginPath(); ctx.moveTo(ML, py(y)); ctx.lineTo(W-MR, py(y)); ctx.stroke();
+    ctx.fillText(fmt(y), 4, py(y)+4);
+  }
+  const nx = Math.min(8, Math.max(2, Math.floor((x1-x0)/7)));
+  for (let i=0;i<=nx;i++){
+    const x = Math.round(x0 + (x1-x0)*i/nx);
+    const dt = dataDeIdx(x);
+    ctx.fillText(dbr(dstr(dt)), px(x)-12, HT-8);
+  }
+  for (const s of series){
+    ctx.strokeStyle = s.cor; ctx.lineWidth = s.tracejada?1.2:2;
+    ctx.setLineDash(s.tracejada?[5,4]:[]);
+    ctx.beginPath();
+    let prim=true;
+    for (const [x,y] of s.pontos.sort((a,b)=>a[0]-b[0])){
+      if (prim){ ctx.moveTo(px(x),py(y)); prim=false; } else ctx.lineTo(px(x),py(y));
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    if (!s.tracejada){
+      for (const [x,y] of s.pontos){
+        ctx.fillStyle = s.cor;
+        ctx.beginPath(); ctx.arc(px(x),py(y),2.4,0,7); ctx.fill();
+      }
+    }
+  }
+}
+
+/* ---------- serie temporal por destino ---------- */
+function serieTemporal(){
+  const series = [], leg = [];
+  for (const dest of DESTINOS){
+    const d = SD[dest];
+    const pts = Object.entries(d.porDia).map(([i,p])=>[+i,p]);
+    if (!pts.length) continue;
+    series.push({nome:NOME[dest], cor:COR[dest], pontos:pts});
+    // media movel
+    const mm = [];
+    for (const [i,] of pts){
+      const m = mediaMovel(d.porDia, +i, 30);
+      if (m!==null) mm.push([+i, m]);
+    }
+    if (mm.length>1) series.push({nome:"", cor:COR[dest], pontos:mm, tracejada:true});
+    leg.push(`<span><span class="cor" style="background:${COR[dest]}"></span>${NOME[dest]}</span>`);
+  }
+  desenhaLinhas(document.getElementById("serie"), series, {});
+  document.getElementById("legSerie").innerHTML = leg.join("") +
+    `<span>tracejada: média móvel 30d</span>`;
+}
+serieTemporal();
+
+/* ---------- por companhia ---------- */
+let ciaDest = "LIS";
+function abasCia(){
+  const el = document.getElementById("abasCia");
+  el.innerHTML = "";
+  for (const dest of DESTINOS){
+    const b = document.createElement("button");
+    b.className = "aba" + (dest===ciaDest ? " ativa" : "");
+    b.textContent = NOME[dest];
+    b.onclick = () => { ciaDest = dest; abasCia(); porCia(); };
+    el.appendChild(b);
+  }
+}
+const PALETA = ["#4d9fff","#3fb950","#d29922","#f85149","#bc8cff","#39c5cf",
+                "#ff9bce","#9ece6a","#e0af68","#7dcfff"];
+function porCia(){
+  // voos: "DEST|ida|volta" -> [[idx, [[cias,preco,paradas,dur]...]]...]
+  const porCiaDia = {};   // cias -> {idx: menor preco}
+  const contag = {};      // cias -> n observacoes
+  const nomesCia = {};
+  for (const [ch, serie] of Object.entries(H.voos || {})){
+    if (!ch.startsWith(ciaDest+"|")) continue;
+    for (const [idx, lista] of serie){
+      for (const [cias, preco, paradas] of lista){
+        const m = porCiaDia[cias] = porCiaDia[cias] || {};
+        if (!(idx in m) || preco < m[idx]) m[idx] = preco;
+        contag[cias] = (contag[cias]||0)+1;
+      }
+    }
+  }
+  const cias = Object.keys(porCiaDia)
+    .sort((a,b)=>contag[b]-contag[a]).slice(0,10);
+  const series = [], leg = [];
+  cias.forEach((c,i)=>{
+    const pts = Object.entries(porCiaDia[c]).map(([x,y])=>[+x,y]);
+    series.push({nome:c, cor:PALETA[i%PALETA.length], pontos:pts});
+    leg.push(`<span><span class="cor" style="background:${PALETA[i%PALETA.length]}">
+      </span>${c.replace(/\+/g," + ")}</span>`);
+  });
+  desenhaLinhas(document.getElementById("grafCia"), series, {});
+  document.getElementById("legCia").innerHTML = leg.join("");
+  // tabela
+  let html = "<tr><th>companhia</th><th>menor atual</th><th>menor já visto</th><th>leituras</th></tr>";
+  for (const c of cias){
+    const m = porCiaDia[c];
+    const idxs = Object.keys(m).map(Number);
+    const ult = Math.max(...idxs);
+    const atual = m[ult];
+    const minh = Math.min(...Object.values(m));
+    html += `<tr><td>${c.replace(/\+/g," + ")}</td>
+      <td class="num">${fmt(atual)}${HOJE_IDX-ult>1?` <span class="tag velho">${HOJE_IDX-ult}d</span>`:""}</td>
+      <td class="num">${fmt(minh)}</td><td class="num">${contag[c]}</td></tr>`;
+  }
+  document.getElementById("tabCia").innerHTML = html ||
+    "<tr><td>ainda sem sondas neste destino</td></tr>";
+  document.getElementById("notaCia").textContent = cias.length
+    ? "Combinação com + é bilhete único vendido com duas companhias. " +
+      "O preço é o menor do dia entre os pares de datas sondados; a coluna de " +
+      "leituras diz quantas observações sustentam cada linha."
+    : "Ainda sem sondas neste destino; o rodízio de coleta chega nele nas próximas rodadas.";
+}
+abasCia(); porCia();
+
+/* ---------- insights do Google ---------- */
+function insights(){
+  const linhas = [];
+  for (const [ch, serie] of Object.entries(H.insights || {})){
+    if (!serie.length) continue;
+    const [dest, ida, volta] = ch.split("|");
+    const u = serie[serie.length-1];
+    const [idx, dados] = [u[0], u[1]];
+    const [status, atual, tmin, tmax] = dados;
+    linhas.push({dest, ida, volta, idx, status, atual, tmin, tmax});
+  }
+  linhas.sort((a,b)=> a.dest.localeCompare(b.dest) || (a.atual||9e9)-(b.atual||9e9));
+  let html = "<tr><th>rota e datas</th><th>preço na leitura</th><th>faixa típica (Google)</th><th>situação</th></tr>";
+  const rot = {1:["baixo","tag baixo"],2:["normal","tag normal"],3:["normal","tag normal"],4:["alto","tag alto"],5:["alto","tag alto"]};
+  for (const l of linhas.slice(0,30)){
+    const [rotulo, classe] = rot[l.status] || ["?", "tag normal"];
+    html += `<tr><td>${NOME[l.dest]}, ${dbr(l.ida)} a ${dbr(l.volta)}</td>
+      <td class="num">${l.atual?fmt(l.atual):""}</td>
+      <td class="num">${l.tmin&&l.tmax ? fmt(l.tmin)+" a "+fmt(l.tmax) : "sem faixa"}</td>
+      <td><span class="${classe}">${rotulo}</span></td></tr>`;
+  }
+  document.getElementById("tabIns").innerHTML =
+    linhas.length ? html : "<tr><td>ainda sem leituras de insight</td></tr>";
+}
+insights();
+
+/* ---------- diagnostico ---------- */
+function diagnostico(){
+  const r = (H.rodadas||[]).slice(-10).reverse();
+  if (!r.length) return;
+  const linhas = r.map(x=>{
+    const oks = Object.values(x.ok||{}).reduce((a,b)=>a+b,0);
+    const nf = Object.keys(x.falhas||{}).length;
+    return `${(x.quando||"").replace("T"," ").slice(0,16)} (${x.fonte}): ` +
+           `${oks} coletas${nf?`, ${nf} falhas`:""}`;
+  });
+  document.getElementById("diagnostico").innerHTML =
+    "<b>Últimas rodadas.</b> " + linhas.join("; ") + ".";
+}
+diagnostico();
+window.addEventListener("resize", ()=>{ serieTemporal(); porCia(); });
+</script>
+</body>
+</html>
