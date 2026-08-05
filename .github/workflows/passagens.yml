@@ -1,15 +1,15 @@
 name: passagens
 
-# De hora em hora, no minuto 23 (deslocado do minuto 7 do precos-zfold8 e do
-# 37 do takemehome, que rodam na mesma conta). Repositorio PUBLICO de
-# proposito: minutos de Actions em repositorio publico nao consomem os 2.000
-# min/mes da conta, entao a rodada horaria cabe sem apertar ninguem.
-# O cron do GitHub atrasa e as vezes e descartado sob carga; antes de
-# investigar coleta sumida, conferir `gh run list` para ver se o run existiu.
+# Duas chances por hora (minutos 23 e 53), porque o cron do GitHub atrasa e
+# as vezes e descartado sob carga: a das 12:23 UTC de 05/08/2026 simplesmente
+# nao existiu. O grupo de concorrencia impede rodadas sobrepostas, e em
+# repositorio PUBLICO os minutos de Actions nao consomem os 2.000 min/mes da
+# conta; foi por isso que o repositorio e publico. Antes de investigar coleta
+# sumida, conferir `gh run list` para ver se o run chegou a existir.
 
 on:
   schedule:
-    - cron: "23 * * * *"
+    - cron: "23,53 * * * *"
   workflow_dispatch:
 
 concurrency:
