@@ -48,6 +48,11 @@ table.mapa th.dur{text-align:right; padding-right:6px; position:sticky; left:0;
   background:var(--cartao)}
 table.mapa td{width:15px; height:15px; min-width:15px; border-radius:3px;
   border:1px solid var(--fundo); cursor:default}
+table.mapa td.tem{cursor:pointer}
+table.mapa td.tem:hover{outline:1px solid var(--texto)}
+a.compra{color:inherit; text-decoration:none;
+  border-bottom:1px dotted var(--fraco)}
+a.compra:hover{border-bottom:1px solid currentColor}
 canvas{width:100%; height:auto; display:block}
 .grade2{display:grid; grid-template-columns:1fr; gap:14px}
 @media(min-width:900px){.grade2{grid-template-columns:3fr 2fr}}
@@ -247,7 +252,9 @@ function cartoes(){
       } else tag = `<span class="tag normal">coletando base: ${dias} de 14 dias</span>`;
       const idade = HOJE_IDX - m.idx;
       const vtag = idade>1 ? `<span class="tag velho">leitura de ${idade} dias atrás</span>` : "";
-      corpo += `<div class="preco" style="color:${COR[dest]}">${fmt(m.preco)}${tag}${vtag}</div>
+      corpo += `<div class="preco" style="color:${COR[dest]}"><a class="compra"
+        href="${linkGoogle(dest, ida, dstr(volta))}" target="_blank"
+        rel="noopener">${fmt(m.preco)}</a>${tag}${vtag}</div>
         <div class="det">menor vigente: sair ${dbr(ida)}, voltar ${dbr(dstr(volta))}
         (${dur} noites)${mm!==null ? "; média 30d " + fmt(mm) : ""}
         <br><a href="${linkGoogle(dest, ida, dstr(volta))}" target="_blank"
@@ -335,8 +342,8 @@ function mapa(){
       const c = d.celulas[dt+"|"+dur];
       const cor = c ? corPreco(c.preco, min, max) : "#1c2128";
       const idade = c ? HOJE_IDX - c.idx : null;
-      html += `<td style="background:${cor}" data-d="${dt}" data-dur="${dur}"
-        data-p="${c?c.preco:''}" data-i="${idade??''}"></td>`;
+      html += `<td class="${c?'tem':''}" style="background:${cor}" data-d="${dt}"
+        data-dur="${dur}" data-p="${c?c.preco:''}" data-i="${idade??''}"></td>`;
     }
     html += "</tr>";
   }
@@ -351,10 +358,17 @@ function mapa(){
       dica.innerHTML = p
         ? `${dbr(td.dataset.d)}/2027, ${td.dataset.dur} noites: <b>${fmt(+p)}</b>` +
           (+td.dataset.i>1 ? `<br>leitura de ${td.dataset.i} dias atrás` :
-           +td.dataset.i===1 ? "<br>leitura de ontem" : "<br>leitura de hoje")
+           +td.dataset.i===1 ? "<br>leitura de ontem" : "<br>leitura de hoje") +
+          "<br>clique para abrir a compra"
         : `${dbr(td.dataset.d)}/2027, ${td.dataset.dur} noites: sem leitura`;
     };
     td.onmouseleave = () => dica.style.display = "none";
+    td.onclick = () => {
+      if (!td.dataset.p) return;
+      const v = new Date(td.dataset.d + "T12:00:00Z");
+      v.setUTCDate(v.getUTCDate() + +td.dataset.dur);
+      window.open(linkGoogle(mapaDest, td.dataset.d, dstr(v)), "_blank", "noopener");
+    };
   });
   document.getElementById("legMapa").innerHTML =
     `<span><span class="cor" style="background:hsl(120 65% 38%)"></span>${fmt(min)}</span>` +
@@ -456,14 +470,17 @@ const PALETA = ["#4d9fff","#3fb950","#d29922","#f85149","#bc8cff","#39c5cf",
 function porCia(){
   // voos: "DEST|ida|volta" -> [[idx, [[cias,preco,paradas,dur]...]]...]
   const porCiaDia = {};   // cias -> {idx: menor preco}
+  const parDoDia = {};    // cias -> {idx: "DEST|ida|volta" onde o menor foi visto}
   const contag = {};      // cias -> n observacoes
-  const nomesCia = {};
   for (const [ch, serie] of Object.entries(H.voos || {})){
     if (!ch.startsWith(ciaDest+"|")) continue;
     for (const [idx, lista] of serie){
       for (const [cias, preco, paradas] of lista){
         const m = porCiaDia[cias] = porCiaDia[cias] || {};
-        if (!(idx in m) || preco < m[idx]) m[idx] = preco;
+        if (!(idx in m) || preco < m[idx]){
+          m[idx] = preco;
+          (parDoDia[cias] = parDoDia[cias] || {})[idx] = ch;
+        }
         contag[cias] = (contag[cias]||0)+1;
       }
     }
@@ -487,8 +504,15 @@ function porCia(){
     const ult = Math.max(...idxs);
     const atual = m[ult];
     const minh = Math.min(...Object.values(m));
+    const par = (parDoDia[c] || {})[ult];
+    let precoHtml = fmt(atual);
+    if (par){
+      const [pd, pida, pvolta] = par.split("|");
+      precoHtml = `<a class="compra" href="${linkGoogle(pd, pida, pvolta)}"
+        target="_blank" rel="noopener">${fmt(atual)}</a>`;
+    }
     html += `<tr><td>${c.replace(/\+/g," + ")}</td>
-      <td class="num">${fmt(atual)}${HOJE_IDX-ult>1?` <span class="tag velho">${HOJE_IDX-ult}d</span>`:""}</td>
+      <td class="num">${precoHtml}${HOJE_IDX-ult>1?` <span class="tag velho">${HOJE_IDX-ult}d</span>`:""}</td>
       <td class="num">${fmt(minh)}</td><td class="num">${contag[c]}</td></tr>`;
   }
   document.getElementById("tabCia").innerHTML = html ||
@@ -518,7 +542,8 @@ function insights(){
   for (const l of linhas.slice(0,30)){
     const [rotulo, classe] = rot[l.status] || ["?", "tag normal"];
     html += `<tr><td>${NOME[l.dest]}, ${dbr(l.ida)} a ${dbr(l.volta)}</td>
-      <td class="num">${l.atual?fmt(l.atual):""}</td>
+      <td class="num">${l.atual?`<a class="compra" href="${linkGoogle(l.dest,l.ida,l.volta)}"
+        target="_blank" rel="noopener">${fmt(l.atual)}</a>`:""}</td>
       <td class="num">${l.tmin&&l.tmax ? fmt(l.tmin)+" a "+fmt(l.tmax) : "sem faixa"}</td>
       <td><span class="${classe}">${rotulo}</span></td></tr>`;
   }
