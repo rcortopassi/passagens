@@ -1,16 +1,26 @@
 name: passagens
 
-# Duas chances por hora (minutos 23 e 53), porque o cron do GitHub atrasa e
-# as vezes e descartado sob carga: a das 12:23 UTC de 05/08/2026 simplesmente
-# nao existiu. O grupo de concorrencia impede rodadas sobrepostas, e em
-# repositorio PUBLICO os minutos de Actions nao consomem os 2.000 min/mes da
-# conta; foi por isso que o repositorio e publico. Antes de investigar coleta
-# sumida, conferir `gh run list` para ver se o run chegou a existir.
+# Quatro chances por hora (minutos 8, 23, 38 e 53), porque o cron do GitHub
+# atrasa e as vezes e descartado sob carga: em 05/08/2026, de oito horarios
+# previstos entre 12h e 16h UTC, so o das 15:23 rodou, e com 11 min de atraso.
+# Para as chances extras nao virarem quatro rodadas de busca por hora no
+# Google, passagens/recente.py confere antes o historico que esta no ar e a
+# rodada termina sem coletar se ele tiver menos de 45 min. Na pratica sai uma
+# coleta por hora, e um horario descartado e coberto 15 min depois.
+# O grupo de concorrencia impede rodadas sobrepostas, e em repositorio PUBLICO
+# os minutos de Actions nao consomem os 2.000 min/mes da conta; foi por isso
+# que o repositorio e publico. Antes de investigar coleta sumida, conferir
+# `gh run list` para ver se o run chegou a existir.
 
 on:
   schedule:
-    - cron: "23,53 * * * *"
+    - cron: "8,23,38,53 * * * *"
   workflow_dispatch:
+    inputs:
+      forcar:
+        description: "Coletar mesmo se o painel estiver fresco"
+        type: boolean
+        default: true
 
 concurrency:
   group: passagens          # duas rodadas juntas corrompem o historico
@@ -28,15 +38,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
+      - name: O painel publicado ja esta fresco?
+        id: fresco
+        if: inputs.forcar != true
+        env:
+          PA_USER: ${{ secrets.PA_USER }}
+        run: python3 passagens/recente.py
+      - if: steps.fresco.outputs.fresco != '1'
+        run: pip install -r requirements.txt
       - name: Coletar e publicar
+        if: steps.fresco.outputs.fresco != '1'
         env:
           PA_TOKEN: ${{ secrets.PA_TOKEN }}
           PA_USER: ${{ secrets.PA_USER }}
           PASSAGENS_DATACENTER: "1"
         run: python3 passagens/atualiza.py 2>&1 | tee saida.txt
       - name: Guardar o historico
-        if: always()
+        if: always() && steps.fresco.outputs.fresco != '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
