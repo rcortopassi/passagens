@@ -1,12 +1,15 @@
 name: passagens
 
-# Quatro chances por hora (minutos 8, 23, 38 e 53), porque o cron do GitHub
-# atrasa e as vezes e descartado sob carga: em 05/08/2026, de oito horarios
-# previstos entre 12h e 16h UTC, so o das 15:23 rodou, e com 11 min de atraso.
-# Para as chances extras nao virarem quatro rodadas de busca por hora no
-# Google, passagens/recente.py confere antes o historico que esta no ar e a
-# rodada termina sem coletar se ele tiver menos de 45 min. Na pratica sai uma
-# coleta por hora, e um horario descartado e coberto 15 min depois.
+# Uma chance a cada 10 minutos, porque o cron do GitHub descarta a maioria dos
+# horarios nesta conta. Medido em 05/08/2026: aqui, de treze horarios previstos
+# entre 12h e 16h40 UTC rodou UM (o das 15:23, com 11 min de atraso); no
+# kilauea-monitor, configurado de 30 em 30 min, sairam cinco rodadas no dia,
+# com intervalos de 1h39 a 2h39. Mais horarios e a unica defesa gratuita.
+# O que impede isso de virar seis rodadas de busca por hora no Google e o
+# passagens/recente.py: ele confere o historico que esta no ar e a rodada
+# termina em 5 segundos se ele tiver menos de 45 min, sem nem instalar as
+# dependencias. Na pratica sai uma coleta por hora, e um horario descartado e
+# coberto 10 min depois.
 # O grupo de concorrencia impede rodadas sobrepostas, e em repositorio PUBLICO
 # os minutos de Actions nao consomem os 2.000 min/mes da conta; foi por isso
 # que o repositorio e publico. Antes de investigar coleta sumida, conferir
@@ -14,7 +17,7 @@ name: passagens
 
 on:
   schedule:
-    - cron: "8,23,38,53 * * * *"
+    - cron: "3,13,23,33,43,53 * * * *"
   workflow_dispatch:
     inputs:
       forcar:
