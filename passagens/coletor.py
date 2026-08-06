@@ -311,6 +311,24 @@ def registra_voos(h, dest, ida, volta, its):
         registra_radar(h, dest, dur, ida, resumo[0][1])
 
 
+def registra_intradia(h, dest, preco):
+    """Serie intradiaria: menor preco visto na SONDA desta rodada, por destino.
+
+    E ela que permite medir melhor horario e dia da semana de COMPRA: o radar
+    guarda so um ponto por dia e joga fora a variacao dentro do dia. A sonda
+    reconsulta a cada rodada aproximadamente os mesmos pares (os mais baratos
+    conhecidos), entao a serie compara precos do MESMO cesto hora a hora.
+    Ponto = [horas desde BASE_DIA em Brasilia, preco]. Limitada aos ultimos
+    6000 pontos por destino (uns 8 meses de rodadas horarias).
+    """
+    agora_ = agora()
+    hora_idx = dia_idx(agora_.date()) * 24 + agora_.hour
+    serie = h.setdefault("intradia", {}).setdefault(dest, [])
+    serie.append([hora_idx, preco])
+    if len(serie) > 6000:
+        del serie[:len(serie) - 6000]
+
+
 def registra_insights(h, dest, ida, volta, ins):
     if not ins:
         return
@@ -427,11 +445,15 @@ def rodada():
         for dest in DESTINOS:
             n = MELHORES_POR_DESTINO if dest != "LIS" else MELHORES_POR_DESTINO * 2
             sondados = 0
+            melhor_da_sonda = None
             for ida, volta in melhores_conhecidos(h, dest, n):
                 try:
                     its, ins = busca_completa(dest, ida.isoformat(), volta.isoformat())
                     registra_voos(h, dest, ida, volta, its)
                     registra_insights(h, dest, ida, volta, ins)
+                    menor = min(x["preco"] for x in its)
+                    if melhor_da_sonda is None or menor < melhor_da_sonda:
+                        melhor_da_sonda = menor
                     sondados += 1
                     desafios_seguidos = 0
                 except Exception as e:
@@ -442,6 +464,7 @@ def rodada():
                 time.sleep(3 + random.random() * 3)
             if sondados:
                 ok[f"sonda {dest}"] = sondados
+                registra_intradia(h, dest, melhor_da_sonda)
             log(f"sonda {dest}: {sondados} pares")
             if desafios_seguidos >= 3:
                 break

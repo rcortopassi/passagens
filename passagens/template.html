@@ -102,6 +102,12 @@ preço cruza para baixo a média com folga de 3%.</div>
 <div class="painel"><canvas id="serie" height="320"></canvas>
 <div class="legenda" id="legSerie"></div></div>
 
+<div class="painel" style="margin-top:14px">
+<b>Melhor momento de compra: hora e dia da semana</b>
+<div class="sub" id="momentoSub"></div>
+<div id="momentoCorpo"></div>
+</div>
+
 <h2>Por companhia aérea</h2>
 <div class="sub">Menor preço do dia por companhia (ou combinação vendida junta,
 como Gol com Air France), nos pares de datas sondados em detalhe.</div>
@@ -451,6 +457,102 @@ function serieTemporal(){
     `<span>tracejada: média móvel 30d</span>`;
 }
 serieTemporal();
+
+/* ---------- melhor momento de compra ---------- */
+function momentoCompra(){
+  // intradia: dest -> [[hora_idx, preco]...], hora_idx = horas desde BASE_DIA (BRT)
+  const NOMES_WD = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+  const WD_ABREV = ["dom","seg","ter","qua","qui","sex","sáb"];
+  // 01/08/2026 (BASE_DIA) foi sábado: dia da semana = (idx_do_dia + 6) % 7, 0 = domingo
+  const wdDe = diaIdx => (diaIdx + 6) % 7;
+  const porHora = Array.from({length:24}, ()=>[]);
+  const porWd = Array.from({length:7}, ()=>[]);
+  const diasCom = new Set();
+  let total = 0;
+  for (const serie of Object.values(H.intradia || {})){
+    // agrupa por dia
+    const porDia = {};
+    for (const [hi, p] of serie){
+      const d = Math.floor(hi/24);
+      (porDia[d] = porDia[d] || []).push([hi%24, p]);
+      diasCom.add(d); total++;
+    }
+    // efeito de HORA: desvio de cada leitura contra a media do proprio dia
+    for (const obs of Object.values(porDia)){
+      if (obs.length < 3) continue;   // dia com pouca leitura so traria ruido
+      const m = obs.reduce((a,b)=>a+b[1],0)/obs.length;
+      for (const [h,p] of obs) porHora[h].push(p/m - 1);
+    }
+    // efeito de DIA DA SEMANA: media do dia contra a media dos 7 dias vizinhos
+    const dias = Object.keys(porDia).map(Number).sort((a,b)=>a-b);
+    const mDia = {};
+    for (const d of dias) mDia[d] = porDia[d].reduce((a,b)=>a+b[1],0)/porDia[d].length;
+    for (const d of dias){
+      const viz = dias.filter(x => Math.abs(x-d) <= 3);
+      if (viz.length < 3) continue;
+      const ref = viz.reduce((a,x)=>a+mDia[x],0)/viz.length;
+      porWd[wdDe(d)].push(mDia[d]/ref - 1);
+    }
+  }
+  const media = v => v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
+  const pct = x => (x>0?"+":"") + (100*x).toFixed(1).replace(".", ",") + "%";
+  const corDev = d => d==null ? "#1c2128" :
+    `hsl(${d<0?120:0} 60% ${34 - Math.min(18, Math.abs(d)*600)}%)`;
+  const strip = (rotulos, devs, ns, minN) => {
+    let s = "<table class='mapa'><tr>";
+    for (let i=0;i<rotulos.length;i++) s += `<th>${rotulos[i]}</th>`;
+    s += "</tr><tr>";
+    for (let i=0;i<rotulos.length;i++){
+      const ok = ns[i] >= minN;
+      const titulo = ok ? `média ${pct(devs[i])} em ${ns[i]} leituras`
+                        : `só ${ns[i]} leituras, sem base`;
+      s += `<td class="tem" style="background:${ok?corDev(devs[i]):'#1c2128'}"
+        title="${rotulos[i]}: ${titulo}"></td>`;
+    }
+    return s + "</tr></table>";
+  };
+  const sub = document.getElementById("momentoSub");
+  const corpo = document.getElementById("momentoCorpo");
+  const devH = porHora.map(media), nH = porHora.map(v=>v.length);
+  const devW = porWd.map(media), nW = porWd.map(v=>v.length);
+  const MIN_H = 5, MIN_W = 4;
+  const dias = diasCom.size;
+  let html = "";
+  html += `<div class="nota">Hora do dia (Brasília), 0h à esquerda, 23h à direita.
+    Verde: costuma estar mais barato; vermelho: mais caro; cinza: ainda sem base.</div>`;
+  html += strip(Array.from({length:24},(_,i)=>i%3===0? i:""), devH, nH, MIN_H);
+  html += `<div class="nota" style="margin-top:10px">Dia da semana.</div>`;
+  html += strip(WD_ABREV, devW, nW, MIN_W);
+  const candH = devH.map((d,i)=>[d,i]).filter(([d,i])=>d!==null && nH[i]>=MIN_H);
+  const candW = devW.map((d,i)=>[d,i]).filter(([d,i])=>d!==null && nW[i]>=MIN_W);
+  const frases = [];
+  if (dias >= 7 && candH.length >= 6){
+    const [d,hh] = candH.sort((a,b)=>a[0]-b[0])[0];
+    frases.push(`melhor hora medida até agora: por volta das ${hh}h (${pct(d)}
+      contra a média do dia, ${nH[hh]} leituras)`);
+  }
+  if (dias >= 14 && candW.length >= 5){
+    const [d,wd] = candW.sort((a,b)=>a[0]-b[0])[0];
+    frases.push(`melhor dia medido: ${NOMES_WD[wd]} (${pct(d)} contra a semana,
+      ${nW[wd]} dias)`);
+  }
+  if (frases.length){
+    sub.textContent = "Medido por este painel, no cesto dos pares mais baratos, " +
+      "reconsultado a cada hora: " + frases.join("; ") + ".";
+  } else {
+    sub.textContent = `Ainda medindo: ${total} leituras em ${dias}
+      dia(s). O padrão de hora aparece com ~1 semana de coleta; o de dia da
+      semana, com ~2 a 4 semanas. Enquanto isso vale o palpite dos estudos de
+      mercado, marcado como palpite: emissão de madrugada e em fim de semana
+      tende a sair um pouco mais barata, e o efeito é PEQUENO comparado a
+      escolher bem as datas de viagem.`;
+  }
+  html += `<div class="nota" style="margin-top:8px">O efeito de hora e dia de
+    compra é um desempate fino: costuma valer poucos por cento. O grosso da
+    economia está no par de datas e no aviso de abaixo da média.</div>`;
+  corpo.innerHTML = html;
+}
+momentoCompra();
 
 /* ---------- por companhia ---------- */
 let ciaDest = "LIS";
