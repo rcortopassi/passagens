@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Coletor de passagens BSB -> Lyon / Genebra / Lisboa, ida e volta, 2 adultos.
+"""Coletor de passagens a partir de BSB, ida e volta, em tres grupos (abas):
+  - Europa: Lyon, Genebra e Lisboa, 2 adultos (o painel original);
+  - Sao Paulo: Congonhas (CGH), 1 adulto;
+  - Rio de Janeiro: Santos Dumont (SDU) e Galeao (GIG), 2 adultos.
+Mesma janela e mesma analise para todos; so mudam trecho e passageiros.
 
 Fonte: Google Flights, por duas portas (reconhecimento de 05/08/2026):
   1. Busca completa: GET /travel/flights?tfs=<protobuf> devolve HTML com o bloco
@@ -8,8 +12,9 @@ Fonte: Google Flights, por duas portas (reconhecimento de 05/08/2026):
      escalas, horarios, duracao, preco total 2 adultos em BRL) e o bloco de
      "price insights" (preco atual x faixa tipica da rota).
   2. GetCalendarPicker (RPC): calendario de ~84 dias em uma chamada, por
-     duracao. So funciona para rota com cache global (LIS). LYS e GVA nao tem
-     cache nem na interface oficial: o radar delas e por busca completa
+     duracao. So funciona para rota com cache global (LIS e as domesticas
+     CGH, SDU e GIG, conferido em 08/08/2026: 77 datas cada). LYS e GVA nao
+     tem cache nem na interface oficial: o radar delas e por busca completa
      rotativa, que de qualquer forma alimenta a serie por companhia.
 
 Janela do usuario: partidas de 01/01/2027 a 18/03/2027, estadia de 7 a 14
@@ -36,10 +41,16 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 HISTORICO = os.path.join(AQUI, "historico.json")
 PUBLICADO = "https://rafaelcortopassi.pythonanywhere.com/passagens/historico.json"
 
-DESTINOS = ("LYS", "GVA", "LIS")
-NOME_DESTINO = {"LYS": "Lyon", "GVA": "Genebra", "LIS": "Lisboa"}
+DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG")
+NOME_DESTINO = {"LYS": "Lyon", "GVA": "Genebra", "LIS": "Lisboa",
+                "CGH": "Congonhas", "SDU": "Santos Dumont", "GIG": "Galeão"}
 ORIGEM = "BSB"
-ADULTOS = 2
+# Passageiros por destino: Europa e Rio a 2 adultos, Congonhas a 1.
+ADULTOS = {"LYS": 2, "GVA": 2, "LIS": 2, "CGH": 1, "SDU": 2, "GIG": 2}
+# Rotas com cache de calendario no Google: lidas inteiras a cada rodada.
+# LYS e GVA nao tem cache e seguem no rodizio de buscas completas.
+CAL_DESTINOS = ("LIS", "CGH", "SDU", "GIG")
+ROTATIVOS = ("LYS", "GVA")
 
 # Janela da viagem
 PARTIDA_INI = date(2027, 1, 1)
@@ -91,8 +102,8 @@ def busca_completa(dest, ida, volta):
     """
     leg = lambda a, b, dt: [[[[a, 0]]], [[[b, 0]]], None, 0, None, None, dt,
                             None, None, None, None, None, None, None, 3]
-    spec = [None, None, 1, None, [], 1, [ADULTOS, 0, 0, 0], None, None, None,
-            None, None, None,
+    spec = [None, None, 1, None, [], 1, [ADULTOS[dest], 0, 0, 0], None, None,
+            None, None, None, None,
             [leg(ORIGEM, dest, ida), leg(dest, ORIGEM, volta)],
             None, None, None, 1]
     inner = [[], spec, 0, 0, 0, 1]
@@ -179,15 +190,16 @@ def calendario(dest, dur):
     """GetCalendarPicker: menor preco por data de partida, duracao fixa.
 
     Devolve lista de (date_ida, date_volta, preco). So rende para rota com
-    cache (LIS). Vazio nao e erro aqui: rota fina legitimamente nao tem cache;
-    quem decide se e falha e o chamador, comparando com o rendimento esperado.
+    cache (CAL_DESTINOS). Vazio nao e erro aqui: rota fina legitimamente nao
+    tem cache; quem decide se e falha e o chamador, comparando com o
+    rendimento esperado.
     """
     ida_ref = PARTIDA_INI + timedelta(days=14)
     volta_ref = ida_ref + timedelta(days=dur)
     leg = lambda a, b, dt: [[[[a, 0]]], [[[b, 0]]], None, 0, None, None, dt,
                             None, None, None, None, None, None, None, 3]
-    spec = [None, None, 1, None, [], 1, [ADULTOS, 0, 0, 0], None, None, None,
-            None, None, None,
+    spec = [None, None, 1, None, [], 1, [ADULTOS[dest], 0, 0, 0], None, None,
+            None, None, None, None,
             [leg(ORIGEM, dest, ida_ref.isoformat()),
              leg(dest, ORIGEM, volta_ref.isoformat())],
             None, None, None, 1]
@@ -388,31 +400,32 @@ def rodada():
     ok, falhas = {}, {}
     fonte = "actions" if os.environ.get("GITHUB_ACTIONS") else "mac"
 
-    # 1) Radar de Lisboa pelo calendario, todas as duracoes
-    total_lis = 0
-    for dur in range(DUR_MIN, DUR_MAX + 1):
-        try:
-            dias = calendario("LIS", dur)
-            uteis = 0
-            for ida, volta, preco in dias:
-                if PARTIDA_INI <= ida <= PARTIDA_FIM and volta <= VOLTA_MAX:
-                    registra_radar(h, "LIS", dur, ida, preco)
-                    uteis += 1
-            total_lis += uteis
-            log(f"calendario LIS dur={dur}: {uteis} datas")
-        except Exception as e:
-            falhas[f"calendario LIS {dur}"] = str(e)[:200]
-            log(f"FALHA calendario LIS dur={dur}: {e}")
-        time.sleep(2 + random.random() * 2)
-    if total_lis == 0:
-        falhas["calendario LIS"] = "todas as duracoes vieram vazias"
-    else:
-        ok["calendario LIS"] = total_lis
+    # 1) Radar pelo calendario, todas as duracoes, nas rotas com cache
+    for cdest in CAL_DESTINOS:
+        total_cal = 0
+        for dur in range(DUR_MIN, DUR_MAX + 1):
+            try:
+                dias = calendario(cdest, dur)
+                uteis = 0
+                for ida, volta, preco in dias:
+                    if PARTIDA_INI <= ida <= PARTIDA_FIM and volta <= VOLTA_MAX:
+                        registra_radar(h, cdest, dur, ida, preco)
+                        uteis += 1
+                total_cal += uteis
+                log(f"calendario {cdest} dur={dur}: {uteis} datas")
+            except Exception as e:
+                falhas[f"calendario {cdest} {dur}"] = str(e)[:200]
+                log(f"FALHA calendario {cdest} dur={dur}: {e}")
+            time.sleep(2 + random.random() * 2)
+        if total_cal == 0:
+            falhas[f"calendario {cdest}"] = "todas as duracoes vieram vazias"
+        else:
+            ok[f"calendario {cdest}"] = total_cal
 
-    # 2) Radar rotativo por busca completa: LYS e GVA
+    # 2) Radar rotativo por busca completa: destinos sem cache de calendario
     pares = ordem_rodizio(pares_validos())
     desafios_seguidos = 0
-    for dest in ("LYS", "GVA"):
+    for dest in ROTATIVOS:
         pos = h["rodizio"].get(dest, 0)
         feitos = 0
         for i in range(ROTATIVAS_POR_DESTINO):

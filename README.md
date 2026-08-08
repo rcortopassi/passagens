@@ -1,7 +1,9 @@
 # passagens
 
-Monitor de precos de passagens aereas Brasilia (BSB) para Lyon, Genebra e
-Lisboa; ida e volta, 2 adultos, economica; partidas de janeiro a marco de 2027.
+Monitor de precos de passagens aereas a partir de Brasilia (BSB), ida e
+volta, economica, partidas de janeiro a marco de 2027, em tres abas:
+Europa (Lyon, Genebra e Lisboa, 2 adultos), Sao Paulo (Congonhas, 1 adulto)
+e Rio de Janeiro (Santos Dumont e Galeao, 2 adultos).
 
 Painel: https://rafaelcortopassi.pythonanywhere.com/passagens/
 

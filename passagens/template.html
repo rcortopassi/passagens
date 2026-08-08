@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Passagens: Brasília para Lyon, Genebra e Lisboa</title>
+<title>Passagens: Brasília para Europa, São Paulo e Rio</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f3a5f'/%3E%3Cg transform='translate(4 4)'%3E%3Cpath fill='%23e6edf3' d='M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z'/%3E%3C/g%3E%3C/svg%3E">
 <style>
 :root{
@@ -80,9 +80,8 @@ table.lista td.num{text-align:right; font-variant-numeric:tabular-nums}
 </head>
 <body>
 <h1>Passagens</h1>
-<div class="sub">Brasília (BSB) para Lyon, Genebra e Lisboa; ida e volta, 2 adultos,
-econômica; partidas de 01/01/2027 a 18/03/2027 com volta até 25/03/2027
-(estadia de 7 a 14 noites). Preços em reais, TOTAL para os dois passageiros.</div>
+<div class="abas" id="abasGrupo" style="margin:12px 0 8px"></div>
+<div class="sub" id="subGrupo"></div>
 <div class="sub" id="carimbo"></div>
 
 <div id="alertas"></div>
@@ -124,14 +123,7 @@ como Gol com Air France), nos pares de datas sondados em detalhe.</div>
 típico ou alto em relação ao histórico dele. Última leitura de cada par sondado.</div>
 <div class="painel"><table class="lista" id="tabIns"></table></div>
 
-<div class="palpite" id="palpite">
-<b>Palpite inicial, ainda não medido por este painel</b> (sazonalidade conhecida
-de Brasil para Europa; vai sendo substituído pela medição): partidas mais baratas
-no fim de fevereiro e na primeira quinzena de março, depois do Carnaval
-(9 de fevereiro de 2027); mais caras na primeira semana de janeiro e na semana do
-Carnaval. Melhor época provável de compra: de setembro a início de dezembro de
-2026, com a Black Friday (27/11/2026) como evento de maior chance.
-</div>
+<div class="palpite" id="palpite"></div>
 
 <div class="metodo">
 <p><b>Método.</b> Fonte: Google Flights, lido diretamente (busca completa por par
@@ -139,11 +131,11 @@ de datas e calendário de preços onde a rota tem cache). O preço é o da tarif
 mais barata da econômica; em geral NÃO inclui bagagem despachada nas tarifas
 básicas de algumas companhias, e o mercado brasileiro do Google não permite
 filtrar por mala. Antes de comprar, conferir a franquia no site da companhia.</p>
-<p><b>Leituras.</b> Lisboa tem calendário completo no Google e é lida inteira a
-cada rodada. Lyon e Genebra não têm cache de calendário nem no site oficial:
-são lidas por busca completa, em rodízio de pares de datas, então cada célula
-do mapa tem uma idade; o painel a mostra. Preço vigente é o da última rodada;
-leitura velha fica marcada.</p>
+<p><b>Leituras.</b> Lisboa, Congonhas, Santos Dumont e Galeão têm calendário
+completo no Google e são lidos inteiros a cada rodada. Lyon e Genebra não têm
+cache de calendário nem no site oficial: são lidas por busca completa, em
+rodízio de pares de datas, então cada célula do mapa tem uma idade; o painel a
+mostra. Preço vigente é o da última rodada; leitura velha fica marcada.</p>
 <p><b>Alerta.</b> Aviso comum quando o menor preço vigente cruza para baixo a
 média móvel de 30 dias com folga de 3%, com silêncio de 48h; aviso forte quando
 fica abaixo do percentil 10 de tudo que já foi visto no destino. Nas duas
@@ -155,9 +147,52 @@ primeiras semanas não há base para média e o painel diz isso em vez de invent
 <script>
 "use strict";
 const H = /*__DADOS__*/{};
-const DESTINOS = ["LYS","GVA","LIS"];
-const NOME = {LYS:"Lyon", GVA:"Genebra", LIS:"Lisboa"};
-const COR = {LYS:"#4d9fff", GVA:"#3fb950", LIS:"#d29922"};
+const NOME = {LYS:"Lyon", GVA:"Genebra", LIS:"Lisboa",
+              CGH:"Congonhas", SDU:"Santos Dumont", GIG:"Galeão"};
+const COR = {LYS:"#4d9fff", GVA:"#3fb950", LIS:"#d29922",
+             CGH:"#4d9fff", SDU:"#4d9fff", GIG:"#3fb950"};
+const ADULTOS = {LYS:2, GVA:2, LIS:2, CGH:1, SDU:2, GIG:2};
+const GRUPOS = {
+  europa: {nome:"Europa", destinos:["LYS","GVA","LIS"], padrao:"LIS",
+    sub:"Brasília (BSB) para Lyon, Genebra e Lisboa; ida e volta, 2 adultos, " +
+        "econômica; partidas de 01/01/2027 a 18/03/2027 com volta até " +
+        "25/03/2027 (estadia de 7 a 14 noites). Preços em reais, TOTAL para " +
+        "os dois passageiros.",
+    palpite:"<b>Palpite inicial, ainda não medido por este painel</b> " +
+        "(sazonalidade conhecida de Brasil para Europa; vai sendo substituído " +
+        "pela medição): partidas mais baratas no fim de fevereiro e na " +
+        "primeira quinzena de março, depois do Carnaval (9 de fevereiro de " +
+        "2027); mais caras na primeira semana de janeiro e na semana do " +
+        "Carnaval. Melhor época provável de compra: de setembro a início de " +
+        "dezembro de 2026, com a Black Friday (27/11/2026) como evento de " +
+        "maior chance."},
+  sp: {nome:"São Paulo", destinos:["CGH"], padrao:"CGH",
+    sub:"Brasília (BSB) para São Paulo Congonhas (CGH); ida e volta, " +
+        "1 adulto, econômica; partidas de 01/01/2027 a 18/03/2027 com volta " +
+        "até 25/03/2027 (estadia de 7 a 14 noites). Preços em reais.",
+    palpite:"<b>Palpite inicial, ainda não medido por este painel</b> " +
+        "(sazonalidade conhecida do mercado doméstico; vai sendo substituído " +
+        "pela medição): a ponte aérea tem preço puxado por dia da semana e " +
+        "horário mais que por estação; janeiro alto por férias e a semana do " +
+        "Carnaval (9 de fevereiro de 2027) alta na volta. Passagem doméstica " +
+        "costuma ser mais barata comprada de 1 a 3 meses antes da partida, " +
+        "e a Black Friday (27/11/2026) é o evento de maior chance."},
+  rio: {nome:"Rio de Janeiro", destinos:["SDU","GIG"], padrao:"SDU",
+    sub:"Brasília (BSB) para Rio de Janeiro, Santos Dumont (SDU) e Galeão " +
+        "(GIG); ida e volta, 2 adultos, econômica; partidas de 01/01/2027 a " +
+        "18/03/2027 com volta até 25/03/2027 (estadia de 7 a 14 noites). " +
+        "Preços em reais, TOTAL para os dois passageiros.",
+    palpite:"<b>Palpite inicial, ainda não medido por este painel</b> " +
+        "(sazonalidade conhecida do mercado doméstico; vai sendo substituído " +
+        "pela medição): Rio em alta temporada de janeiro ao Carnaval " +
+        "(9 de fevereiro de 2027), com Réveillon e Carnaval como picos; " +
+        "fim de fevereiro e março tendem a cair. Passagem doméstica costuma " +
+        "ser mais barata comprada de 1 a 3 meses antes da partida, e a " +
+        "Black Friday (27/11/2026) é o evento de maior chance."},
+};
+const TODOS = Object.values(GRUPOS).flatMap(g=>g.destinos);
+let grupoAtivo = "europa";
+const DEST = () => GRUPOS[grupoAtivo].destinos;
 const BASE_DIA = new Date(Date.UTC(2026,7,1));   // 2026-08-01
 const DUR_MIN=7, DUR_MAX=14;
 const fmt = n => "R$ " + Math.round(n).toLocaleString("pt-BR");
@@ -173,7 +208,7 @@ function tfsGoogle(dest, ida, volta){
   const leg = (dt,a,b)=>len(3,[...str(2,dt),...airport(13,a),...airport(14,b)]);
   const bytes = [...int(1,28),...int(2,2),
     ...leg(ida,"BSB",dest),...leg(volta,dest,"BSB"),
-    ...len(8,[1,1]),...int(9,1),...int(14,1),...int(19,1)];
+    ...len(8,Array(ADULTOS[dest]||2).fill(1)),...int(9,1),...int(14,1),...int(19,1)];
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 }
 function linkGoogle(dest, ida, volta){
@@ -189,7 +224,7 @@ const dbr = s => s.slice(8,10)+"/"+s.slice(5,7);
 // menor preco do dia por destino, e ultimo dia de leitura por destino
 function seriesDestino(){
   const porDest = {};
-  for (const dest of DESTINOS) porDest[dest] = {porDia:{}, ultimoIdx:-1, celulas:{}};
+  for (const dest of TODOS) porDest[dest] = {porDia:{}, ultimoIdx:-1, celulas:{}};
   for (const [ch, porData] of Object.entries(H.radar || {})){
     const [dest, durS] = ch.split("|");
     if (!porDest[dest]) continue;
@@ -206,7 +241,7 @@ function seriesDestino(){
   return porDest;
 }
 const SD = seriesDestino();
-const HOJE_IDX = Math.max(...DESTINOS.map(d=>SD[d].ultimoIdx), 0);
+const HOJE_IDX = Math.max(...TODOS.map(d=>SD[d].ultimoIdx), 0);
 
 function mediaMovel(porDia, ateIdx, janela){
   let soma=0, n=0;
@@ -226,8 +261,10 @@ document.getElementById("carimbo").textContent =
 
 function cartoes(){
   const el = document.getElementById("cartoes");
+  el.innerHTML = "";
+  document.getElementById("alertas").innerHTML = "";
   const vig = {};
-  for (const dest of DESTINOS){
+  for (const dest of DEST()){
     const d = SD[dest];
     // menor vigente: entre celulas lidas no ultimo dia de leitura do destino
     let melhor=null;
@@ -236,7 +273,7 @@ function cartoes(){
         melhor = {...c, ch};
     vig[dest] = melhor;
   }
-  for (const dest of DESTINOS){
+  for (const dest of DEST()){
     const d = SD[dest], m = vig[dest];
     const card = document.createElement("div");
     card.className = "cartao";
@@ -269,13 +306,15 @@ function cartoes(){
     card.innerHTML = corpo;
     el.appendChild(card);
   }
-  // premio de Lyon e Genebra sobre Lisboa
-  if (vig.LIS && (vig.LYS || vig.GVA)){
+  // premio dos destinos sobre o mais barato do grupo
+  const comVig = DEST().filter(d=>vig[d]);
+  if (comVig.length > 1){
+    const barato = comVig.reduce((a,b)=>vig[a].preco<=vig[b].preco?a:b);
     const linhas = [];
-    for (const dest of ["LYS","GVA"]) if (vig[dest]){
-      const dif = vig[dest].preco - vig.LIS.preco;
-      const pct = Math.round(100*dif/vig.LIS.preco);
-      linhas.push(`${NOME[dest]} custa hoje ${fmt(dif)} (${pct}%) a mais que Lisboa`);
+    for (const dest of comVig) if (dest !== barato){
+      const dif = vig[dest].preco - vig[barato].preco;
+      const pct = Math.round(100*dif/vig[barato].preco);
+      linhas.push(`${NOME[dest]} custa hoje ${fmt(dif)} (${pct}%) a mais que ${NOME[barato]}`);
     }
     if (linhas.length){
       const av = document.createElement("div");
@@ -285,7 +324,7 @@ function cartoes(){
     }
   }
   // alertas de abaixo da media / percentil
-  for (const dest of DESTINOS){
+  for (const dest of DEST()){
     const d = SD[dest], m = vig[dest];
     if (!m) continue;
     const mm = mediaMovel(d.porDia, d.ultimoIdx, 30);
@@ -306,14 +345,13 @@ function cartoes(){
     }
   }
 }
-cartoes();
-
 /* ---------- mapa de calor ---------- */
 let mapaDest = "LIS";
 function abasMapa(){
   const el = document.getElementById("abasMapa");
   el.innerHTML = "";
-  for (const dest of DESTINOS){
+  el.style.display = DEST().length > 1 ? "" : "none";
+  for (const dest of DEST()){
     const b = document.createElement("button");
     b.className = "aba" + (dest===mapaDest ? " ativa" : "");
     b.textContent = NOME[dest];
@@ -336,7 +374,8 @@ function mapa(){
        dt.setUTCDate(dt.getUTCDate()+1)) datas.push(dstr(new Date(dt)));
   const precos = Object.values(d.celulas).map(c=>c.preco);
   if (!precos.length){ cont.innerHTML =
-    `<div class="nota">ainda sem leituras para ${NOME[mapaDest]}</div>`; return; }
+    `<div class="nota">ainda sem leituras para ${NOME[mapaDest]}</div>`;
+    document.getElementById("legMapa").innerHTML = ""; return; }
   const min = Math.min(...precos), max = Math.max(...precos);
   let html = "<table class='mapa'><tr><th class='dur'></th>";
   for (const dt of datas)
@@ -382,8 +421,6 @@ function mapa(){
     `<span><span class="cor" style="background:hsl(0 65% 28%)"></span>${fmt(max)}</span>` +
     `<span><span class="cor" style="background:#1c2128"></span>sem leitura</span>`;
 }
-abasMapa(); mapa();
-
 /* ---------- grafico de linhas generico ---------- */
 function desenhaLinhas(cv, series, opts){
   // series: [{nome, cor, pontos:[[x,y]...], tracejada}]
@@ -438,7 +475,7 @@ function desenhaLinhas(cv, series, opts){
 /* ---------- serie temporal por destino ---------- */
 function serieTemporal(){
   const series = [], leg = [];
-  for (const dest of DESTINOS){
+  for (const dest of DEST()){
     const d = SD[dest];
     const pts = Object.entries(d.porDia).map(([i,p])=>[+i,p]);
     if (!pts.length) continue;
@@ -456,7 +493,6 @@ function serieTemporal(){
   document.getElementById("legSerie").innerHTML = leg.join("") +
     `<span>tracejada: média móvel 30d</span>`;
 }
-serieTemporal();
 
 /* ---------- melhor momento de compra ---------- */
 function momentoCompra(){
@@ -469,7 +505,8 @@ function momentoCompra(){
   const porWd = Array.from({length:7}, ()=>[]);
   const diasCom = new Set();
   let total = 0;
-  for (const serie of Object.values(H.intradia || {})){
+  for (const [idest, serie] of Object.entries(H.intradia || {})){
+    if (!DEST().includes(idest)) continue;
     // agrupa por dia
     const porDia = {};
     for (const [hi, p] of serie){
@@ -552,14 +589,14 @@ function momentoCompra(){
     economia está no par de datas e no aviso de abaixo da média.</div>`;
   corpo.innerHTML = html;
 }
-momentoCompra();
 
 /* ---------- por companhia ---------- */
 let ciaDest = "LIS";
 function abasCia(){
   const el = document.getElementById("abasCia");
   el.innerHTML = "";
-  for (const dest of DESTINOS){
+  el.style.display = DEST().length > 1 ? "" : "none";
+  for (const dest of DEST()){
     const b = document.createElement("button");
     b.className = "aba" + (dest===ciaDest ? " ativa" : "");
     b.textContent = NOME[dest];
@@ -625,7 +662,6 @@ function porCia(){
       "leituras diz quantas observações sustentam cada linha."
     : "Ainda sem sondas neste destino; o rodízio de coleta chega nele nas próximas rodadas.";
 }
-abasCia(); porCia();
 
 /* ---------- insights do Google ---------- */
 function insights(){
@@ -633,6 +669,7 @@ function insights(){
   for (const [ch, serie] of Object.entries(H.insights || {})){
     if (!serie.length) continue;
     const [dest, ida, volta] = ch.split("|");
+    if (!DEST().includes(dest)) continue;
     const u = serie[serie.length-1];
     const [idx, dados] = [u[0], u[1]];
     const [status, atual, tmin, tmax] = dados;
@@ -652,7 +689,6 @@ function insights(){
   document.getElementById("tabIns").innerHTML =
     linhas.length ? html : "<tr><td>ainda sem leituras de insight</td></tr>";
 }
-insights();
 
 /* ---------- diagnostico ---------- */
 function diagnostico(){
@@ -668,6 +704,38 @@ function diagnostico(){
     "<b>Últimas rodadas.</b> " + linhas.join("; ") + ".";
 }
 diagnostico();
+
+/* ---------- abas de grupo e montagem ---------- */
+function abasGrupo(){
+  const el = document.getElementById("abasGrupo");
+  el.innerHTML = "";
+  for (const [g, cfg] of Object.entries(GRUPOS)){
+    const b = document.createElement("button");
+    b.className = "aba" + (g===grupoAtivo ? " ativa" : "");
+    b.textContent = cfg.nome;
+    b.onclick = () => trocaGrupo(g);
+    el.appendChild(b);
+  }
+}
+function renderGrupo(){
+  const cfg = GRUPOS[grupoAtivo];
+  document.getElementById("subGrupo").textContent = cfg.sub;
+  document.getElementById("palpite").innerHTML = cfg.palpite;
+  abasGrupo();
+  cartoes();
+  abasMapa(); mapa();
+  serieTemporal();
+  momentoCompra();
+  abasCia(); porCia();
+  insights();
+}
+function trocaGrupo(g){
+  grupoAtivo = g;
+  mapaDest = GRUPOS[g].padrao;
+  ciaDest = GRUPOS[g].padrao;
+  renderGrupo();
+}
+renderGrupo();
 window.addEventListener("resize", ()=>{ serieTemporal(); porCia(); });
 </script>
 </body>
