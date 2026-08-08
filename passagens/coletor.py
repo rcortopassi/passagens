@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Coletor de passagens a partir de BSB, ida e volta, em tres grupos (abas):
-  - Europa: Lyon, Genebra e Lisboa, 2 adultos (o painel original);
+  - Europa: Lyon, Genebra e Lisboa, 2 adultos (o painel original), janela
+    FIXA da viagem de 2027;
   - Sao Paulo: Congonhas (CGH), 1 adulto;
   - Rio de Janeiro: Santos Dumont (SDU) e Galeao (GIG), 2 adultos.
-Mesma janela e mesma analise para todos; so mudam trecho e passageiros.
+As abas domesticas nao tem viagem marcada: o objetivo e ir QUANDO ESTIVER
+BARATO. A janela delas e ROLANTE (partidas de amanha ate ROL_DIAS a frente,
+estadias curtas) e anda sozinha a cada rodada. Mesma analise para todos.
 
 Fonte: Google Flights, por duas portas (reconhecimento de 05/08/2026):
   1. Busca completa: GET /travel/flights?tfs=<protobuf> devolve HTML com o bloco
@@ -52,11 +55,26 @@ ADULTOS = {"LYS": 2, "GVA": 2, "LIS": 2, "CGH": 1, "SDU": 2, "GIG": 2}
 CAL_DESTINOS = ("LIS", "CGH", "SDU", "GIG")
 ROTATIVOS = ("LYS", "GVA")
 
-# Janela da viagem
+# Janela da viagem da EUROPA (fixa)
 PARTIDA_INI = date(2027, 1, 1)
 VOLTA_MAX = date(2027, 3, 25)      # fim da Quaresma (Quinta-feira Santa)
 DUR_MIN, DUR_MAX = 7, 14           # noites
 PARTIDA_FIM = VOLTA_MAX - timedelta(days=DUR_MIN)   # 2027-03-18
+
+# Janela ROLANTE das rotas domesticas: sem viagem marcada, a ideia e enxergar
+# quando esta barato para ir. Anda um dia por dia, sozinha.
+DOMESTICOS = ("CGH", "SDU", "GIG")
+ROL_DIAS = 120                     # horizonte de partidas (~4 meses)
+ROL_DUR_MIN, ROL_DUR_MAX = 2, 7    # noites (escapada curta a uma semana)
+
+
+def janela(dest):
+    """(partida_ini, partida_fim, volta_max, dur_min, dur_max) do destino."""
+    if dest in DOMESTICOS:
+        ini = agora().date() + timedelta(days=1)
+        fim = ini + timedelta(days=ROL_DIAS - 1)
+        return ini, fim, fim + timedelta(days=ROL_DUR_MAX), ROL_DUR_MIN, ROL_DUR_MAX
+    return PARTIDA_INI, PARTIDA_FIM, VOLTA_MAX, DUR_MIN, DUR_MAX
 
 # Datas de radar viram indice de dias desde esta base, para compactar o JSON
 BASE_DIA = date(2026, 8, 1)
@@ -186,15 +204,17 @@ def _le_insights(p):
         return None
 
 
-def calendario(dest, dur):
-    """GetCalendarPicker: menor preco por data de partida, duracao fixa.
+def calendario(dest, dur, ini, fim):
+    """GetCalendarPicker: menor preco por data de partida, duracao fixa,
+    partidas de ini a fim (a RPC devolve a janela inteira pedida; conferido
+    com 150 dias em uma chamada em 08/08/2026).
 
     Devolve lista de (date_ida, date_volta, preco). So rende para rota com
     cache (CAL_DESTINOS). Vazio nao e erro aqui: rota fina legitimamente nao
     tem cache; quem decide se e falha e o chamador, comparando com o
     rendimento esperado.
     """
-    ida_ref = PARTIDA_INI + timedelta(days=14)
+    ida_ref = ini + timedelta(days=14)
     volta_ref = ida_ref + timedelta(days=dur)
     leg = lambda a, b, dt: [[[[a, 0]]], [[[b, 0]]], None, 0, None, None, dt,
                             None, None, None, None, None, None, None, 3]
@@ -203,7 +223,7 @@ def calendario(dest, dur):
             [leg(ORIGEM, dest, ida_ref.isoformat()),
              leg(dest, ORIGEM, volta_ref.isoformat())],
             None, None, None, 1]
-    inner = [None, spec, [PARTIDA_INI.isoformat(), PARTIDA_FIM.isoformat()],
+    inner = [None, spec, [ini.isoformat(), fim.isoformat()],
              None, [dur, dur]]
     freq = json.dumps([None, json.dumps(inner)])
     tent = 1 if DATACENTER else 2
@@ -350,6 +370,34 @@ def registra_insights(h, dest, ida, volta, ins):
                    [ins[0], ins[1], ins[2], ins[3]])
 
 
+def poda_alem_do_horizonte(h):
+    """Tira das rotas domesticas datas de ida alem do horizonte rolante.
+
+    Sobra da migracao de 08/08/2026 (as domesticas nasceram com a janela fixa
+    de 2027 e mudaram para a rolante no mesmo dia) e defesa contra uma rodada
+    concorrente republicar essas chaves. Depois de limpo, nunca dispara:
+    o coletor so registra dentro do horizonte. Datas que ficaram para TRAS
+    nao sao tocadas; elas sao a historia do painel.
+    """
+    podadas = 0
+    for dest in DOMESTICOS:
+        lim = janela(dest)[1].isoformat()
+        for ch in [c for c in h.get("radar", {}) if c.split("|")[0] == dest]:
+            pordata = h["radar"][ch]
+            for ida in [i for i in pordata if i > lim]:
+                del pordata[ida]
+                podadas += 1
+            if not pordata:
+                del h["radar"][ch]
+        for campo in ("voos", "insights"):
+            for ch in [c for c in h.get(campo, {})
+                       if c.split("|")[0] == dest and c.split("|")[1] > lim]:
+                del h[campo][ch]
+                podadas += 1
+    if podadas:
+        log(f"poda: {podadas} entradas domesticas alem do horizonte")
+
+
 # ------------------------------------------------------------------ grade/rodizio
 def pares_validos():
     """Todos os pares (ida, dur) dentro da janela."""
@@ -371,7 +419,13 @@ def ordem_rodizio(pares):
 
 
 def melhores_conhecidos(h, dest, n):
-    """Os n pares (ida, volta) mais baratos ja vistos no radar deste destino."""
+    """Os n pares (ida, volta) mais baratos ja vistos no radar deste destino.
+
+    Ignora partidas que ja passaram: na janela rolante das rotas domesticas o
+    radar acumula datas que ficam para tras, e sondar voo de ontem e pedir
+    resposta vazia.
+    """
+    hoje = agora().date()
     vistos = []
     for ch, pordata in h["radar"].items():
         d, dur = ch.split("|")
@@ -380,6 +434,8 @@ def melhores_conhecidos(h, dest, n):
         for ida_s, serie in pordata.items():
             if serie:
                 ida = date.fromisoformat(ida_s)
+                if ida <= hoje:
+                    continue
                 vistos.append((serie[-1][1], ida, ida + timedelta(days=int(dur))))
     vistos.sort()
     out, ja = [], set()
@@ -396,19 +452,21 @@ def melhores_conhecidos(h, dest, n):
 # ----------------------------------------------------------------------- rodada
 def rodada():
     h = carrega()
+    poda_alem_do_horizonte(h)
     inicio = agora()
     ok, falhas = {}, {}
     fonte = "actions" if os.environ.get("GITHUB_ACTIONS") else "mac"
 
     # 1) Radar pelo calendario, todas as duracoes, nas rotas com cache
     for cdest in CAL_DESTINOS:
+        ini, fim, vmax, dmin, dmax = janela(cdest)
         total_cal = 0
-        for dur in range(DUR_MIN, DUR_MAX + 1):
+        for dur in range(dmin, dmax + 1):
             try:
-                dias = calendario(cdest, dur)
+                dias = calendario(cdest, dur, ini, fim)
                 uteis = 0
                 for ida, volta, preco in dias:
-                    if PARTIDA_INI <= ida <= PARTIDA_FIM and volta <= VOLTA_MAX:
+                    if ini <= ida <= fim and volta <= vmax:
                         registra_radar(h, cdest, dur, ida, preco)
                         uteis += 1
                 total_cal += uteis

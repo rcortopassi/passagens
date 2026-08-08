@@ -1,9 +1,11 @@
 # passagens
 
 Monitor de precos de passagens aereas a partir de Brasilia (BSB), ida e
-volta, economica, partidas de janeiro a marco de 2027, em tres abas:
-Europa (Lyon, Genebra e Lisboa, 2 adultos), Sao Paulo (Congonhas, 1 adulto)
-e Rio de Janeiro (Santos Dumont e Galeao, 2 adultos).
+volta, economica, em tres abas: Europa (Lyon, Genebra e Lisboa, 2 adultos,
+janela fixa de janeiro a marco de 2027), Sao Paulo (Congonhas, 1 adulto) e
+Rio de Janeiro (Santos Dumont e Galeao, 2 adultos). As abas domesticas nao
+tem viagem marcada: janela rolante de 4 meses, estadias de 2 a 7 noites,
+para viajar quando estiver barato.
 
 Painel: https://rafaelcortopassi.pythonanywhere.com/passagens/
 
