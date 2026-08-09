@@ -33,6 +33,7 @@ Regras herdadas dos outros coletores (precos, takemehome):
 """
 import json
 import os
+import re
 import sys
 import time
 import random
@@ -370,6 +371,63 @@ def registra_insights(h, dest, ida, volta, ins):
                    [ins[0], ins[1], ins[2], ins[3]])
 
 
+# --------------------------------------------------- conferencia direta (teste)
+GOL_SEO_URL = "https://www.voegol.com.br/br/voos/brasilia-para-sao-paulo"
+
+
+def conferencia_gol(h):
+    """Le as tarifas que a PROPRIA GOL anuncia no site dela para BSB<->CGH.
+
+    Fonte: o cache de tarifas (airTRFX/EveryMundo) embutido nas paginas de
+    ofertas do voegol.com.br, renderizado no servidor e fora do desafio do
+    Akamai; e o mesmo dado "a partir de" que o site mostra ao público, com
+    carimbo de "visto ha N horas". Cada pagina traz o par nas duas direcoes.
+
+    Reconhecimento de 09/08/2026: a BUSCA completa (escolhendo datas) da GOL,
+    da LATAM e da Azul fica atras do Akamai Bot Manager e nao e viavel por
+    rodada automatica; esta e a parte do site da companhia que da para
+    conferir de hora em hora. Preco de 1 adulto, SO IDA, por direcao; a soma
+    das duas direcoes e comparavel ao radar de Congonhas (1 adulto, ida e
+    volta), porque tarifa domestica e vendida por trecho.
+
+    Serie em h["diretas"]["GOL|BSB|CGH"] = [[dia_idx, [data_anunciada,
+    preco]], ...], um ponto por dia (ultima leitura do dia vale).
+    """
+    r = rq.get(GOL_SEO_URL, impersonate="chrome", timeout=45)
+    if r.status_code != 200:
+        raise RuntimeError(f"HTTP {r.status_code}")
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', r.text, re.S)
+    if not m:
+        raise RuntimeError("pagina sem __NEXT_DATA__ (mudou o layout?)")
+    fares = []
+
+    def acha(o):
+        if isinstance(o, dict):
+            if o.get("__typename") == "Fare":
+                fares.append(o)
+            for v in o.values():
+                acha(v)
+        elif isinstance(o, list):
+            for v in o:
+                acha(v)
+
+    acha(json.loads(m.group(1)))
+    n = 0
+    for f in fares:
+        o, d = f.get("originAirportCode"), f.get("destinationAirportCode")
+        if {o, d} != {"BSB", "CGH"} or f.get("flightType") != "ONE_WAY":
+            continue
+        preco, ida = f.get("totalPrice"), f.get("departureDate")
+        if not preco or not ida:
+            continue
+        serie = h.setdefault("diretas", {}).setdefault(f"GOL|{o}|{d}", [])
+        _poe_ponto_dia(serie, dia_idx(agora().date()), [ida, preco])
+        n += 1
+    if not n:
+        raise RuntimeError("pagina sem tarifa BSB<->CGH (cache da GOL vazio?)")
+    return n
+
+
 def poda_alem_do_horizonte(h):
     """Tira das rotas domesticas datas de ida alem do horizonte rolante.
 
@@ -479,6 +537,14 @@ def rodada():
             falhas[f"calendario {cdest}"] = "todas as duracoes vieram vazias"
         else:
             ok[f"calendario {cdest}"] = total_cal
+
+    # 1b) Conferencia direta no site da GOL (BSB<->CGH), mesma frequencia
+    try:
+        ok["conferencia GOL"] = conferencia_gol(h)
+        log(f"conferencia GOL: {ok['conferencia GOL']} direcoes")
+    except Exception as e:
+        falhas["conferencia GOL"] = str(e)[:200]
+        log(f"FALHA conferencia GOL: {e}")
 
     # 2) Radar rotativo por busca completa: destinos sem cache de calendario
     pares = ordem_rodizio(pares_validos())

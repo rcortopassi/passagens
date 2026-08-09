@@ -123,6 +123,14 @@ como Gol com Air France), nos pares de datas sondados em detalhe.</div>
 típico ou alto em relação ao histórico dele. Última leitura de cada par sondado.</div>
 <div class="painel"><table class="lista" id="tabIns"></table></div>
 
+<h2 id="tDiretas">Conferência direto no site da companhia</h2>
+<div class="sub" id="subDiretas">Tarifa mais barata que a própria companhia anuncia
+no site dela para o trecho, lida na mesma frequência do Google Flights. Preço de
+1 adulto, só ida, por direção; a soma das duas direções equivale a uma ida e
+volta, porque tarifa doméstica é vendida por trecho.</div>
+<div class="painel" id="paiDiretas"><table class="lista" id="tabDiretas"></table>
+<div class="nota" id="notaDiretas"></div></div>
+
 <div class="palpite" id="palpite"></div>
 
 <div class="metodo">
@@ -136,6 +144,11 @@ completo no Google e são lidos inteiros a cada rodada. Lyon e Genebra não têm
 cache de calendário nem no site oficial: são lidas por busca completa, em
 rodízio de pares de datas, então cada célula do mapa tem uma idade; o painel a
 mostra. Preço vigente é o da última rodada; leitura velha fica marcada.</p>
+<p><b>Conferência direta.</b> Para Congonhas, o painel também lê na mesma
+frequência a tarifa mais barata que a própria GOL anuncia no site dela (o
+cache que alimenta as páginas de ofertas do voegol.com.br). A busca completa
+com datas escolhidas nos sites de GOL, LATAM e Azul é bloqueada por proteção
+contra robôs e fica de fora.</p>
 <p><b>Alerta.</b> Aviso comum quando o menor preço vigente cruza para baixo a
 média móvel de 30 dias com folga de 3%, com silêncio de 48h; aviso forte quando
 fica abaixo do percentil 10 de tudo que já foi visto no destino. Nas duas
@@ -717,6 +730,60 @@ function insights(){
     linhas.length ? html : "<tr><td>ainda sem leituras de insight</td></tr>";
 }
 
+/* ---------- conferencia direta no site da companhia ---------- */
+function diretas(){
+  const t = document.getElementById("tDiretas");
+  const sub = document.getElementById("subDiretas");
+  const pai = document.getElementById("paiDiretas");
+  const ents = Object.entries(H.diretas || {}).filter(([ch]) => {
+    const [, o, d] = ch.split("|");
+    return DEST().includes(o) || DEST().includes(d);
+  });
+  const liga = ents.length > 0;
+  t.style.display = sub.style.display = pai.style.display = liga ? "" : "none";
+  if (!liga) return;
+  const hojeS = dstr(dataDeIdx(HOJE_IDX));
+  let html = "<tr><th>fonte e trecho</th><th>data anunciada</th><th>preço no site</th><th>leitura</th></tr>";
+  let soma = 0, pontas = 0, idadeMax = 0;
+  for (const [ch, serie] of ents){
+    if (!serie.length) continue;
+    const [cia, o, d] = ch.split("|");
+    const [idx, [dataAn, preco]] = serie[serie.length - 1];
+    const idade = Math.max(0, HOJE_IDX - idx);
+    idadeMax = Math.max(idadeMax, idade);
+    soma += preco; pontas++;
+    html += `<tr><td>${cia}, ${o} para ${d}</td>
+      <td>${dbr(dataAn)}/${dataAn.slice(0,4)}</td>
+      <td class="num">${fmt(preco)}</td>
+      <td>${idade===0?"hoje":idade===1?"ontem":idade+" dias atrás"}</td></tr>`;
+  }
+  document.getElementById("tabDiretas").innerHTML = html;
+  // comparacao com o menor vigente do grupo no Google
+  let menorGoogle = null;
+  for (const dest of DEST()){
+    const d = SD[dest];
+    for (const [ch, c] of Object.entries(d.celulas))
+      if (c.idx >= d.ultimoIdx-1 && ch.split("|")[0] > hojeS &&
+          (menorGoogle === null || c.preco < menorGoogle)) menorGoogle = c.preco;
+  }
+  let nota = "";
+  if (pontas === 2 && menorGoogle !== null){
+    const dif = soma - menorGoogle;
+    const pct = Math.round(100 * Math.abs(dif) / menorGoogle);
+    nota = `Soma das duas direções no site da companhia: ${fmt(soma)}, contra
+      ${fmt(menorGoogle)} do menor ida e volta vigente pelo Google (todas as
+      companhias, datas livres): diferença de ${fmt(Math.abs(dif))} (${pct}%)
+      ${dif >= 0 ? "acima" : "abaixo"}. As datas anunciadas pela companhia não
+      são escolhidas por este painel, então a comparação é de ordem de
+      grandeza, não par a par. `;
+  }
+  nota += "A busca completa com datas escolhidas nos sites de GOL, LATAM e " +
+    "Azul é bloqueada por proteção contra robôs (Akamai); esta conferência " +
+    "usa o cache de tarifas que o próprio site da GOL publica, o mesmo das " +
+    "páginas de ofertas dele. LATAM e Azul não expõem cache equivalente.";
+  document.getElementById("notaDiretas").textContent = nota;
+}
+
 /* ---------- diagnostico ---------- */
 function diagnostico(){
   const r = (H.rodadas||[]).slice(-10).reverse();
@@ -755,6 +822,7 @@ function renderGrupo(){
   momentoCompra();
   abasCia(); porCia();
   insights();
+  diretas();
 }
 function trocaGrupo(g){
   grupoAtivo = g;
