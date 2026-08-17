@@ -20,9 +20,10 @@ from pathlib import Path
 BASE = Path(__file__).parent
 sys.path.insert(0, str(BASE))
 
-DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG")
+DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG", "CNF")
 NOME = {"LYS": "Lyon", "GVA": "Genebra", "LIS": "Lisboa",
-        "CGH": "Congonhas", "SDU": "Santos Dumont", "GIG": "Galeão"}
+        "CGH": "Congonhas", "SDU": "Santos Dumont", "GIG": "Galeão",
+        "CNF": "Belo Horizonte"}
 FOLGA = 0.97
 BASE_MINIMA_DIAS = 14
 

@@ -4,10 +4,13 @@
   - Europa: Lyon, Genebra e Lisboa, 2 adultos (o painel original), janela
     FIXA da viagem de 2027;
   - Sao Paulo: Congonhas (CGH), 1 adulto;
-  - Rio de Janeiro: Santos Dumont (SDU) e Galeao (GIG), 2 adultos.
-As abas domesticas nao tem viagem marcada: o objetivo e ir QUANDO ESTIVER
-BARATO. A janela delas e ROLANTE (partidas de amanha ate ROL_DIAS a frente,
-estadias curtas) e anda sozinha a cada rodada. Mesma analise para todos.
+  - Rio de Janeiro: Santos Dumont (SDU) e Galeao (GIG), 2 adultos;
+  - Belo Horizonte: Confins (CNF), 2 adultos, DATA MARCADA.
+As abas de Sao Paulo e Rio nao tem viagem marcada: o objetivo e ir QUANDO
+ESTIVER BARATO. A janela delas e ROLANTE (partidas de amanha ate ROL_DIAS a
+frente, estadias curtas) e anda sozinha a cada rodada. Belo Horizonte e o
+oposto: a viagem ja tem data (8 a 10 de janeiro de 2027), entao o painel
+vigia UM par so, do jeito que ele for. Mesma analise para todos.
 
 Fonte: Google Flights, por duas portas (reconhecimento de 05/08/2026):
   1. Busca completa: GET /travel/flights?tfs=<protobuf> devolve HTML com o bloco
@@ -45,12 +48,14 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 HISTORICO = os.path.join(AQUI, "historico.json")
 PUBLICADO = "https://rafaelcortopassi.pythonanywhere.com/passagens/historico.json"
 
-DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG")
+DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG", "CNF")
 NOME_DESTINO = {"LYS": "Lyon", "GVA": "Genebra", "LIS": "Lisboa",
-                "CGH": "Congonhas", "SDU": "Santos Dumont", "GIG": "Galeão"}
+                "CGH": "Congonhas", "SDU": "Santos Dumont", "GIG": "Galeão",
+                "CNF": "Belo Horizonte"}
 ORIGEM = "BSB"
-# Passageiros por destino: Europa e Rio a 2 adultos, Congonhas a 1.
-ADULTOS = {"LYS": 2, "GVA": 2, "LIS": 2, "CGH": 1, "SDU": 2, "GIG": 2}
+# Passageiros por destino: so Congonhas e de 1 adulto; o resto, 2.
+ADULTOS = {"LYS": 2, "GVA": 2, "LIS": 2, "CGH": 1, "SDU": 2, "GIG": 2,
+           "CNF": 2}
 # Rotas com cache de calendario no Google: lidas inteiras a cada rodada.
 # LYS e GVA nao tem cache e seguem no rodizio de buscas completas.
 CAL_DESTINOS = ("LIS", "CGH", "SDU", "GIG")
@@ -68,9 +73,21 @@ DOMESTICOS = ("CGH", "SDU", "GIG")
 ROL_DIAS = 120                     # horizonte de partidas (~4 meses)
 ROL_DUR_MIN, ROL_DUR_MAX = 2, 7    # noites (escapada curta a uma semana)
 
+# Destinos de DATA MARCADA: um par (ida, volta) unico, sem janela para varrer.
+# Belo Horizonte entrou assim em 17/08/2026, a pedido do usuario: a viagem ja
+# tem data, entao nao ha grade de datas a comparar; o painel vigia o preco
+# daquele par ao longo do tempo e avisa quando ele cair abaixo da propria
+# media. Confins (CNF) e o unico aeroporto util: BSB-Pampulha (PLU) nao tem
+# voo (conferido em 17/08/2026, em tres datas diferentes) e o codigo de
+# metropole BHZ nao e aceito por esta RPC.
+FIXOS = {"CNF": (date(2027, 1, 8), date(2027, 1, 10))}
+
 
 def janela(dest):
     """(partida_ini, partida_fim, volta_max, dur_min, dur_max) do destino."""
+    if dest in FIXOS:
+        ida, volta = FIXOS[dest]
+        return ida, ida, volta, (volta - ida).days, (volta - ida).days
     if dest in DOMESTICOS:
         ini = agora().date() + timedelta(days=1)
         fim = ini + timedelta(days=ROL_DIAS - 1)
@@ -546,6 +563,26 @@ def rodada():
         falhas["conferencia GOL"] = str(e)[:200]
         log(f"FALHA conferencia GOL: {e}")
 
+    # 1c) Destinos de data marcada: uma busca completa no par unico, por rodada.
+    # Vem antes das rotativas de proposito: e uma requisicao so, e a viagem que
+    # ja tem data nao pode ficar sem leitura porque o rodizio da Europa gastou
+    # a rodada ou tomou desafio.
+    for fdest in sorted(FIXOS):
+        fida, fvolta = FIXOS[fdest]
+        try:
+            its, ins = busca_completa(fdest, fida.isoformat(), fvolta.isoformat())
+            registra_voos(h, fdest, fida, fvolta, its)
+            registra_insights(h, fdest, fida, fvolta, ins)
+            menor = min(x["preco"] for x in its)
+            registra_intradia(h, fdest, menor)
+            ok[f"fixo {fdest}"] = len(its)
+            log(f"fixo {fdest} {fida} a {fvolta}: {len(its)} itinerarios, "
+                f"menor R$ {menor}")
+        except Exception as e:
+            falhas[f"fixo {fdest}"] = str(e)[:200]
+            log(f"FALHA fixo {fdest} {fida}: {e}")
+        time.sleep(3 + random.random() * 3)
+
     # 2) Radar rotativo por busca completa: destinos sem cache de calendario
     pares = ordem_rodizio(pares_validos())
     desafios_seguidos = 0
@@ -580,6 +617,8 @@ def rodada():
     # 3) Sonda dos pares mais baratos ja conhecidos (todos os destinos)
     if desafios_seguidos < 3:
         for dest in DESTINOS:
+            if dest in FIXOS:
+                continue          # par unico, ja lido inteiro no passo 1c
             n = MELHORES_POR_DESTINO if dest != "LIS" else MELHORES_POR_DESTINO * 2
             sondados = 0
             melhor_da_sonda = None
