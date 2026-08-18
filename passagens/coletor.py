@@ -126,7 +126,7 @@ def log(*a):
     print(*a, flush=True)
 
 
-def busca_completa(dest, ida, volta):
+def busca_completa(dest, ida, volta, tentativas=None):
     """Uma busca de verdade, pela RPC GetShoppingResults (a mesma do site).
 
     A pagina HTML so traz itinerarios embutidos quando a rota tem cache; para
@@ -135,6 +135,11 @@ def busca_completa(dest, ida, volta):
 
     itinerarios: lista de dicts {cias, preco, paradas, escalas, dur_min}
     insights: [status, atual, tipico_min, tipico_max] ou None
+
+    tentativas force o numero de tentativas, ignorando o corte de datacenter.
+    Serve para a leitura que nao pode faltar (o par unico dos destinos de data
+    marcada): ali nao ha outro par para compensar a falha, entao uma tentativa
+    so significa uma hora sem ponto.
     """
     leg = lambda a, b, dt: [[[[a, 0]]], [[[b, 0]]], None, 0, None, None, dt,
                             None, None, None, None, None, None, None, 3]
@@ -144,7 +149,7 @@ def busca_completa(dest, ida, volta):
             None, None, None, 1]
     inner = [[], spec, 0, 0, 0, 1]
     freq = json.dumps([None, json.dumps(inner)])
-    tent = 1 if DATACENTER else 3
+    tent = tentativas or (1 if DATACENTER else 3)
     ultimo = None
     for i in range(tent):
         try:
@@ -570,7 +575,12 @@ def rodada():
     for fdest in sorted(FIXOS):
         fida, fvolta = FIXOS[fdest]
         try:
-            its, ins = busca_completa(fdest, fida.isoformat(), fvolta.isoformat())
+            # 3 tentativas mesmo no Actions: e uma requisicao por rodada e a
+            # resposta vazia do Google e frequente (medida em 18/08/2026,
+            # falhou na primeira rodada em CI). Com par unico, falhar aqui e
+            # ficar sem nenhum ponto na hora.
+            its, ins = busca_completa(fdest, fida.isoformat(),
+                                      fvolta.isoformat(), tentativas=3)
             registra_voos(h, fdest, fida, fvolta, its)
             registra_insights(h, fdest, fida, fvolta, ins)
             menor = min(x["preco"] for x in its)
