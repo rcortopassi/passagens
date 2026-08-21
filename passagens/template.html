@@ -101,9 +101,31 @@ table.lista td.num{text-align:right; font-variant-numeric:tabular-nums}
 a.compra{color:inherit; text-decoration:none;
   border-bottom:1px dotted var(--fraco)}
 a.compra:hover{border-bottom:1px solid currentColor}
+.lista td.melhor{background:#eef5ef}
+.botao-tema{float:right; margin-top:10px; border:1px solid var(--borda);
+  background:var(--cartao); color:var(--texto); border-radius:999px;
+  padding:6px 16px; cursor:pointer; font-size:.85em;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+/* modo noturno: mesmas formas, paleta escura; ativado pelo botao no topo */
+html[data-theme="dark"]{
+  --fundo:#0c111c; --cartao:#151c2b; --borda:#2a3550; --texto:#dbe4f3;
+  --fraco:#8a96ad; --azul:#6ab7f5; --verde:#57c785; --ambar:#e0a53f;
+  --vermelho:#ef6f67; --roxo:#b79df2;
+}
+html[data-theme="dark"] .cartao{box-shadow:none}
+html[data-theme="dark"] .painel{box-shadow:none}
+html[data-theme="dark"] .tag.baixo{background:#15311f; color:var(--verde)}
+html[data-theme="dark"] .tag.alto{background:#3a1d1c; color:var(--vermelho)}
+html[data-theme="dark"] .tag.normal{background:#232c3f; color:var(--fraco)}
+html[data-theme="dark"] .tag.velho{background:#33290f; color:var(--ambar)}
+html[data-theme="dark"] .aviso.bom{border-color:#2c5c3c; background:#12281b}
+html[data-theme="dark"] .veredito{background:#12281b}
+html[data-theme="dark"] .lista td.melhor{background:#12281b}
+html[data-theme="dark"] .palpite{border-left-color:var(--ambar)}
 </style>
 </head>
 <body>
+<button class="botao-tema" id="botaoTema" onclick="alternaTema()"></button>
 <h1>Passagens</h1>
 <div class="abas" id="abasGrupo" style="margin:12px 0 8px"></div>
 <div class="sub" id="subGrupo"></div>
@@ -454,7 +476,7 @@ function cartoesLua(){
       const eMelhor = o === melhor;
       const posTxt = o.pos !== null ? ` <span style="color:var(--fraco)">(voo ${fmt(o.preco)} + posic. ${fmt(o.pos)})</span>`
                    : o.posPend ? ` <span style="color:var(--fraco)">(só o voo; posic. pendente)</span>` : "";
-      html += `<td class="num"${eMelhor ? ' style="background:#eef5ef"' : ""}>
+      html += `<td class="num${eMelhor ? " melhor" : ""}">
         <a class="compra" href="${linkGoogle(o.k, o.ida, o.volta)}" target="_blank"
         rel="noopener"><b>${fmt(o.total)}</b></a>${posTxt}
         <br><span style="color:var(--fraco)">${dbr(o.ida)} · ${o.dur}n${o.idade > 1 ? " · leitura de " + o.idade + "d atrás" : ""}</span></td>`;
@@ -621,7 +643,7 @@ function mapa(){
     html += `<tr><th class='dur'>${dur}n</th>`;
     for (const dt of datas){
       const c = d.celulas[dt+"|"+dur];
-      const cor = c ? corPreco(c.preco, min, max) : "#efe9dc";
+      const cor = c ? corPreco(c.preco, min, max) : T().vazio;
       const idade = c ? HOJE_IDX - c.idx : null;
       html += `<td class="${c?'tem':''}" style="background:${cor}" data-d="${dt}"
         data-dur="${dur}" data-p="${c?c.preco:''}" data-i="${idade??''}"></td>`;
@@ -655,7 +677,7 @@ function mapa(){
     `<span><span class="cor" style="background:hsl(120 65% 38%)"></span>${fmt(min)}</span>` +
     `<span><span class="cor" style="background:hsl(60 65% 33%)"></span>meio</span>` +
     `<span><span class="cor" style="background:hsl(0 65% 28%)"></span>${fmt(max)}</span>` +
-    `<span><span class="cor" style="background:#efe9dc"></span>sem leitura</span>`;
+    `<span><span class="cor" style="background:${T().vazio}"></span>sem leitura</span>`;
 }
 /* ---------- grafico de linhas generico ---------- */
 function desenhaLinhas(cv, series, opts){
@@ -668,7 +690,7 @@ function desenhaLinhas(cv, series, opts){
   cv.style.height = HT+"px";
   ctx.clearRect(0,0,W,HT);
   const todos = series.flatMap(s=>s.pontos);
-  if (!todos.length){ ctx.fillStyle="#7a7264"; ctx.font="13px sans-serif";
+  if (!todos.length){ ctx.fillStyle=T().rotulo; ctx.font="13px sans-serif";
     ctx.fillText("ainda sem dados suficientes", 20, 40); return; }
   const xs = todos.map(p=>p[0]), ys = todos.map(p=>p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
@@ -677,7 +699,7 @@ function desenhaLinhas(cv, series, opts){
   const ML=64, MR=10, MT=10, MB=26;
   const px = x => ML + (x1===x0 ? 0.5 : (x-x0)/(x1-x0)) * (W-ML-MR);
   const py = y => MT + (1-(y-y0)/(y1-y0)) * (HT-MT-MB);
-  ctx.strokeStyle="#e3dccd"; ctx.fillStyle="#7a7264"; ctx.font="11px sans-serif";
+  ctx.strokeStyle=T().grid; ctx.fillStyle=T().rotulo; ctx.font="11px sans-serif";
   const passos = 5;
   for (let i=0;i<=passos;i++){
     const y = y0 + (y1-y0)*i/passos;
@@ -818,7 +840,7 @@ function momentoCompra(){
       const ok = ns[i] >= minN;
       const titulo = ok ? `média ${pct(devs[i])} em ${ns[i]} ${unidade}`
                         : `só ${ns[i]} ${unidade}, sem base`;
-      s += `<td class="tem" style="background:${ok?corDev(devs[i]):'#efe9dc'}"
+      s += `<td class="tem" style="background:${ok?corDev(devs[i]):T().vazio}"
         title="${rotulos[i]}: ${titulo}"></td>`;
     }
     return s + "</tr></table>";
@@ -891,6 +913,50 @@ function abasCia(){
 }
 const PALETA = ["#1d5c8f","#2e7d4f","#b0701c","#b3382e","#7b5ea7","#0e7490",
                 "#b0487e","#4d7c0f","#92400e","#155e75"];
+/* ---------- temas: claro (padrao) e noturno ---------- */
+// As cores dos GRAFICOS nao vem do CSS (canvas e estilos inline), entao cada
+// tema carrega grade, rotulos, celula vazia e as paletas de linhas; a troca
+// muta COR/CORC/PALETA e redesenha tudo com renderGrupo().
+const TEMAS = {
+  claro: {grid:"#e3dccd", rotulo:"#7a7264", vazio:"#efe9dc",
+    cor:{LYS:"#1d5c8f", GVA:"#2e7d4f", LIS:"#b0701c", CGH:"#1d5c8f",
+         SDU:"#1d5c8f", GIG:"#2e7d4f", CNF:"#1d5c8f"},
+    corc:{FCO:"#b3382e", MXP:"#7b5ea7", CDG:"#1d5c8f", MAD:"#b0701c",
+          BCN:"#2e7d4f", BER:"#54524d", FRA:"#0e7490", LAX:"#b0487e",
+          YYZ:"#4d7c0f"},
+    paleta:["#1d5c8f","#2e7d4f","#b0701c","#b3382e","#7b5ea7","#0e7490",
+            "#b0487e","#4d7c0f","#92400e","#155e75"]},
+  escuro: {grid:"#26304a", rotulo:"#8a96ad", vazio:"#1a2233",
+    cor:{LYS:"#6ab7f5", GVA:"#57c785", LIS:"#e0a53f", CGH:"#6ab7f5",
+         SDU:"#6ab7f5", GIG:"#57c785", CNF:"#6ab7f5"},
+    corc:{FCO:"#ef6f67", MXP:"#b79df2", CDG:"#6ab7f5", MAD:"#e0a53f",
+          BCN:"#57c785", BER:"#9aa3b2", FRA:"#4fc3dd", LAX:"#ef8fc0",
+          YYZ:"#a3d977"},
+    paleta:["#6ab7f5","#57c785","#e0a53f","#ef6f67","#b79df2","#4fc3dd",
+            "#ef8fc0","#a3d977","#f0b27d","#7dd3c8"]},
+};
+let tema = null;
+try { tema = localStorage.getItem("tema"); } catch(e){}
+if (tema !== "claro" && tema !== "escuro")
+  tema = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches)
+         ? "escuro" : "claro";
+const T = () => TEMAS[tema];
+function aplicaTema(){
+  document.documentElement.dataset.theme = tema === "escuro" ? "dark" : "light";
+  const t = T();
+  Object.assign(COR, t.cor);
+  Object.assign(CORC, t.corc);
+  for (const k of LUA_ROTAS) COR[k] = CORC[k.includes(":") ? k.split(":")[1] : k];
+  PALETA.length = 0; PALETA.push(...t.paleta);
+  const btn = document.getElementById("botaoTema");
+  if (btn) btn.textContent = tema === "escuro" ? "modo claro" : "modo noturno";
+}
+function alternaTema(){
+  tema = tema === "escuro" ? "claro" : "escuro";
+  try { localStorage.setItem("tema", tema); } catch(e){}
+  aplicaTema();
+  renderGrupo();
+}
 function porCia(){
   // voos: "DEST|ida|volta" -> [[idx, [[cias,preco,paradas,dur]...]]...]
   const porCiaDia = {};   // cias -> {idx: menor preco}
@@ -1075,6 +1141,7 @@ function trocaGrupo(g){
   ciaDest = GRUPOS[g].padrao;
   renderGrupo();
 }
+aplicaTema();
 renderGrupo();
 window.addEventListener("resize", ()=>{ serieTemporal(); porCia(); });
 </script>
