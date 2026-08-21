@@ -50,10 +50,10 @@ def analisa():
             d, ida, volta = m[0]
             ch = f"{d}|{(volta - ida).days}"
             preco = h["radar"][ch][ida.isoformat()][-1][1]
-            resumo.append(f"Lua de mel: {d} {ida.strftime('%d/%m')} "
+            resumo.append(f"Baby Moon: {d} {ida.strftime('%d/%m')} "
                           f"R$ {preco:,}".replace(",", "."))
     except Exception as e:
-        resumo.append(f"Lua de mel sem leitura ({type(e).__name__})")
+        resumo.append(f"Baby Moon sem leitura ({type(e).__name__})")
     for dest in DESTINOS:
         por_dia = {}
         celulas = []
