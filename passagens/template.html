@@ -76,6 +76,9 @@ table.lista td.num{text-align:right; font-variant-numeric:tabular-nums}
   z-index:10; max-width:300px}
 .palpite{border-left:3px solid var(--fraco); padding-left:12px; margin-top:10px;
   color:var(--fraco); font-size:.9em}
+.veredito{border-left:3px solid var(--verde); background:#10241a;
+  border-radius:0 10px 10px 0; padding:9px 14px; margin:10px 0 6px}
+.veredito b{color:var(--verde)}
 </style>
 </head>
 <body>
@@ -640,31 +643,37 @@ function momentoCompra(){
     sustentam cada célula).</div>`;
   html += strip(WD_ABREV, devW, nW, MIN_W, "dias");
   const candH = devH.map((d,i)=>[d,i]).filter(([d,i])=>d!==null && nH[i]>=MIN_H);
-  const candW = devW.map((d,i)=>[d,i]).filter(([d,i])=>d!==null && nW[i]>=3);
-  const frases = [];
-  if (dias >= 7 && candH.length >= 6){
-    const [d,hh] = candH.sort((a,b)=>a[0]-b[0])[0];
-    frases.push(`melhor hora medida até agora: por volta das ${hh}h (${pct(d)}
-      contra a média do dia, ${nH[hh]} leituras)`);
+  const candW = devW.map((d,i)=>[d,i]).filter(([d,i])=>d!==null && nW[i]>=MIN_W);
+  const melhorHora = candH.length ? [...candH].sort((a,b)=>a[0]-b[0])[0] : null;
+  const melhorDia = candW.length ? [...candW].sort((a,b)=>a[0]-b[0])[0] : null;
+  sub.textContent = "Como é medido: a hora vem do cesto dos pares mais baratos, " +
+    "reconsultado a cada hora; o dia da semana vem do radar diário inteiro do " +
+    "trecho. Verde nas fitas: mais barato que a média; vermelho: mais caro.";
+  let ver = "";
+  if (melhorDia){
+    const [d, wd] = melhorDia;
+    const solido = diasRadar.length >= 21 && nW[wd] >= 3;
+    ver += `<div>Melhor DIA para comprar: <b>${NOMES_WD[wd]}</b>
+      (${pct(d)} contra a semana; base de ${nW[wd]} semana${nW[wd]>1?"s":""}${
+      solido ? "" : "; prévia, consolida com 3 semanas"})</div>`;
   }
-  if (diasRadar.length >= 21 && candW.length >= 5){
-    const [d,wd] = candW.sort((a,b)=>a[0]-b[0])[0];
-    frases.push(`melhor dia medido: ${NOMES_WD[wd]} (${pct(d)} contra a semana,
-      ${nW[wd]} dias)`);
+  if (melhorHora){
+    const [d, hh] = melhorHora;
+    ver += `<div>Melhor HORA para comprar: <b>por volta das ${hh}h</b>
+      (${pct(d)} contra a média do dia; ${nH[hh]} leituras${dias>=7 ? "" : "; prévia"})</div>`;
   }
-  if (frases.length){
-    sub.textContent = "Medido por este painel (hora: no cesto dos pares mais " +
-      "baratos, reconsultado a cada hora; dia da semana: no radar diário " +
-      "inteiro do trecho): " + frases.join("; ") + ".";
-  } else {
-    sub.textContent = `Ainda medindo: ${total} leituras de hora em ${dias}
-      dia(s) e ${diasRadar.length} dia(s) de radar. O padrão de hora aparece
-      com ~1 semana de coleta; a fita de dia da semana colore com ~2 semanas e
-      a frase "melhor dia" sai com ~3. Enquanto isso vale o palpite dos estudos
-      de mercado, marcado como palpite: emissão de madrugada e em fim de semana
-      tende a sair um pouco mais barata, e o efeito é PEQUENO comparado a
-      escolher bem as datas de viagem.`;
+  if (melhorDia && melhorHora){
+    ver += `<div class="nota">Resumindo: hoje a melhor aposta neste trecho é
+      comprar na <b>${NOMES_WD[melhorDia[1]]}</b>, por volta das
+      <b>${melhorHora[1]}h</b> (horário de Brasília).</div>`;
   }
+  if (!ver){
+    ver = `<div>Ainda medindo: ${total} leituras de hora em ${dias} dia(s) e
+      ${diasRadar.length} dia(s) de radar. Enquanto isso vale o palpite dos
+      estudos de mercado, marcado como palpite: emissão de madrugada e em fim
+      de semana tende a sair um pouco mais barata.</div>`;
+  }
+  html = `<div class="veredito">${ver}</div>` + html;
   html += `<div class="nota" style="margin-top:8px">O efeito de hora e dia de
     compra é um desempate fino: costuma valer poucos por cento. O grosso da
     economia está no par de datas e no aviso de abaixo da média.</div>`;
