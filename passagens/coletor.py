@@ -82,6 +82,49 @@ ROL_DUR_MIN, ROL_DUR_MAX = 2, 7    # noites (escapada curta a uma semana)
 # metropole BHZ nao e aceito por esta RPC.
 FIXOS = {"CNF": (date(2027, 1, 8), date(2027, 1, 10))}
 
+# --- Aba Lua de mel (21/08/2026): caca a oportunidade para a viagem do casal.
+# Roma e o alvo (qualquer lugar da Italia serve: FCO e MXP), com comparadores
+# europeus (CDG, MAD, BCN, BER, FRA) e dois de fora (LAX, YYZ), a partir de
+# TRES origens: Brasilia, Sao Paulo (GRU) e Rio (GIG). 2 adultos, 7 a 12
+# noites, partidas ao longo de 2027. A chave da rota embute a origem quando
+# nao e BSB: "FCO" = BSB->FCO, "GRU:FCO" = GRU->FCO.
+# Reconhecimento de 21/08/2026: TODAS as rotas testadas tem cache de
+# calendario no Google (90 dias por chamada), entao o radar e 100% por
+# calendario, sem rodizio de buscas completas. A RPC REJEITA faixa de duracao
+# ([7,12] volta vazio; so [dur,dur] funciona), por isso a grade e fatiada.
+LUA_IATAS = ("FCO", "MXP", "CDG", "MAD", "BCN", "BER", "FRA", "LAX", "YYZ")
+LUA_ROTAS = tuple(f"{p}{d}" for p in ("", "GRU:", "GIG:") for d in LUA_IATAS)
+LUA_INI, LUA_FIM = date(2027, 1, 1), date(2027, 11, 30)
+LUA_VOLTA_MAX = date(2027, 12, 12)
+LUA_DMIN, LUA_DMAX = 7, 12
+# Janelas-trimestre do radar; cada rodada le UMA (janela, duracao) para todas
+# as 27 rotas, e a grade inteira (4 janelas x 6 duracoes) se renova a cada 24
+# rodadas, ou seja, diariamente com a coleta horaria.
+LUA_JANELAS = ((date(2027, 1, 1), date(2027, 3, 31)),
+               (date(2027, 4, 1), date(2027, 6, 30)),
+               (date(2027, 7, 1), date(2027, 9, 30)),
+               (date(2027, 10, 1), date(2027, 11, 30)))
+# Posicionamento: quando a oferta boa sai de GRU ou GIG, o custo real inclui
+# chegar la. Rotas auxiliares BSB<->hub com 2 adultos, sondadas nas MESMAS
+# datas do melhor par (a aba de SP e de 1 adulto e nao serve para essa conta).
+POSICIONAMENTO = {"GRU": "GRU2", "GIG": "GIG2"}
+ROTA_EXTRA = {"GRU2": ("BSB", "GRU"), "GIG2": ("BSB", "GIG")}
+
+
+def rota_de(dest):
+    """Chave de rota -> (origem, aeroporto de destino)."""
+    if dest in ROTA_EXTRA:
+        return ROTA_EXTRA[dest]
+    if ":" in dest:
+        o, d = dest.split(":", 1)
+        return o, d
+    return ORIGEM, dest
+
+
+def adultos_de(dest):
+    """So Congonhas (aba SP) e de 1 adulto; todo o resto, 2."""
+    return ADULTOS.get(dest, 2)
+
 
 def janela(dest):
     """(partida_ini, partida_fim, volta_max, dur_min, dur_max) do destino."""
@@ -92,6 +135,8 @@ def janela(dest):
         ini = agora().date() + timedelta(days=1)
         fim = ini + timedelta(days=ROL_DIAS - 1)
         return ini, fim, fim + timedelta(days=ROL_DUR_MAX), ROL_DUR_MIN, ROL_DUR_MAX
+    if dest in LUA_ROTAS or dest in ROTA_EXTRA:
+        return LUA_INI, LUA_FIM, LUA_VOLTA_MAX, LUA_DMIN, LUA_DMAX
     return PARTIDA_INI, PARTIDA_FIM, VOLTA_MAX, DUR_MIN, DUR_MAX
 
 # Datas de radar viram indice de dias desde esta base, para compactar o JSON
@@ -141,11 +186,12 @@ def busca_completa(dest, ida, volta, tentativas=None):
     marcada): ali nao ha outro par para compensar a falha, entao uma tentativa
     so significa uma hora sem ponto.
     """
+    orig, iata = rota_de(dest)
     leg = lambda a, b, dt: [[[[a, 0]]], [[[b, 0]]], None, 0, None, None, dt,
                             None, None, None, None, None, None, None, 3]
-    spec = [None, None, 1, None, [], 1, [ADULTOS[dest], 0, 0, 0], None, None,
+    spec = [None, None, 1, None, [], 1, [adultos_de(dest), 0, 0, 0], None, None,
             None, None, None, None,
-            [leg(ORIGEM, dest, ida), leg(dest, ORIGEM, volta)],
+            [leg(orig, iata, ida), leg(iata, orig, volta)],
             None, None, None, 1]
     inner = [[], spec, 0, 0, 0, 1]
     freq = json.dumps([None, json.dumps(inner)])
@@ -239,12 +285,13 @@ def calendario(dest, dur, ini, fim):
     """
     ida_ref = ini + timedelta(days=14)
     volta_ref = ida_ref + timedelta(days=dur)
+    orig, iata = rota_de(dest)
     leg = lambda a, b, dt: [[[[a, 0]]], [[[b, 0]]], None, 0, None, None, dt,
                             None, None, None, None, None, None, None, 3]
-    spec = [None, None, 1, None, [], 1, [ADULTOS[dest], 0, 0, 0], None, None,
+    spec = [None, None, 1, None, [], 1, [adultos_de(dest), 0, 0, 0], None, None,
             None, None, None, None,
-            [leg(ORIGEM, dest, ida_ref.isoformat()),
-             leg(dest, ORIGEM, volta_ref.isoformat())],
+            [leg(orig, iata, ida_ref.isoformat()),
+             leg(iata, orig, volta_ref.isoformat())],
             None, None, None, 1]
     inner = [None, spec, [ini.isoformat(), fim.isoformat()],
              None, [dur, dur]]
@@ -529,6 +576,39 @@ def melhores_conhecidos(h, dest, n):
     return out
 
 
+def melhores_do_grupo(h, dests, n):
+    """Os n pares mais baratos entre TODAS as rotas do grupo.
+
+    Como melhores_conhecidos, mas devolvendo (rota, ida, volta): na aba de
+    caca a oportunidade a pergunta nao e "qual a melhor data deste destino",
+    e "qual a melhor oferta do grupo inteiro".
+    """
+    hoje = agora().date()
+    dset = set(dests)
+    vistos = []
+    for ch, pordata in h["radar"].items():
+        d, dur = ch.rsplit("|", 1)
+        if d not in dset:
+            continue
+        for ida_s, serie in pordata.items():
+            if serie:
+                ida = date.fromisoformat(ida_s)
+                if ida <= hoje:
+                    continue
+                vistos.append((serie[-1][1], d, ida,
+                               ida + timedelta(days=int(dur))))
+    vistos.sort(key=lambda x: x[0])
+    out, ja = [], set()
+    for preco, d, ida, volta in vistos:
+        k = (d, ida, volta)
+        if k not in ja:
+            ja.add(k)
+            out.append((d, ida, volta))
+        if len(out) >= n:
+            break
+    return out
+
+
 # ----------------------------------------------------------------------- rodada
 def rodada():
     h = carrega()
@@ -593,6 +673,38 @@ def rodada():
             log(f"FALHA fixo {fdest} {fida}: {e}")
         time.sleep(3 + random.random() * 3)
 
+    # 1d) Radar da aba Lua de mel: uma fatia (janela-trimestre, duracao) por
+    # rodada, para as 27 rotas. Fatiado porque a RPC rejeita faixa de duracao
+    # e porque 27 rotas x 6 duracoes x 4 janelas numa rodada so estourariam o
+    # tempo; assim cada rodada custa ~27 chamadas e a grade inteira se renova
+    # a cada 24 rodadas.
+    fatias = [(w, dur) for w in range(len(LUA_JANELAS))
+              for dur in range(LUA_DMIN, LUA_DMAX + 1)]
+    pos_lua = h["rodizio"].get("lua", 0)
+    wi, ldur = fatias[pos_lua % len(fatias)]
+    lini, lfim = LUA_JANELAS[wi]
+    total_lua, falhas_lua = 0, 0
+    for rkey in LUA_ROTAS:
+        try:
+            dias = calendario(rkey, ldur, lini, lfim)
+            uteis = 0
+            for ida, volta, preco in dias:
+                if volta <= LUA_VOLTA_MAX:
+                    registra_radar(h, rkey, ldur, ida, preco)
+                    uteis += 1
+            total_lua += uteis
+        except Exception as e:
+            falhas[f"lua {rkey}"] = str(e)[:200]
+            falhas_lua += 1
+            if falhas_lua >= 5:
+                log("lua: 5 rotas seguidas falhando; deixo o resto para a proxima")
+                break
+        time.sleep(1.5 + random.random() * 1.5)
+    h["rodizio"]["lua"] = (pos_lua + 1) % len(fatias)
+    log(f"lua: janela {wi + 1}/4, {ldur} noites: {total_lua} datas")
+    if total_lua:
+        ok["lua radar"] = total_lua
+
     # 2) Radar rotativo por busca completa: destinos sem cache de calendario
     pares = ordem_rodizio(pares_validos())
     desafios_seguidos = 0
@@ -654,6 +766,44 @@ def rodada():
             log(f"sonda {dest}: {sondados} pares")
             if desafios_seguidos >= 3:
                 break
+
+    # 3b) Sonda da Lua de mel: os 6 pares mais baratos do grupo inteiro, com
+    # detalhe por companhia e insights; quando a oferta sai de GRU ou GIG,
+    # sonda tambem o posicionamento BSB<->hub (2 adultos) nas MESMAS datas,
+    # porque o custo real do usuario inclui chegar la.
+    if desafios_seguidos < 3:
+        melhor_lua, sondados_lua = None, 0
+        pos_feitos = set()
+        for rkey, ida, volta in melhores_do_grupo(h, LUA_ROTAS, 6):
+            try:
+                its, ins = busca_completa(rkey, ida.isoformat(), volta.isoformat())
+                registra_voos(h, rkey, ida, volta, its)
+                registra_insights(h, rkey, ida, volta, ins)
+                menor = min(x["preco"] for x in its)
+                if melhor_lua is None or menor < melhor_lua:
+                    melhor_lua = menor
+                sondados_lua += 1
+                desafios_seguidos = 0
+                pkey = POSICIONAMENTO.get(rota_de(rkey)[0])
+                if pkey and (pkey, ida, volta) not in pos_feitos:
+                    pos_feitos.add((pkey, ida, volta))
+                    time.sleep(2 + random.random() * 2)
+                    try:
+                        pits, _ = busca_completa(pkey, ida.isoformat(),
+                                                 volta.isoformat())
+                        registra_voos(h, pkey, ida, volta, pits)
+                    except Exception as e:
+                        falhas[f"posicionamento {pkey} {ida}"] = str(e)[:200]
+            except Exception as e:
+                falhas[f"lua sonda {rkey} {ida}"] = str(e)[:200]
+                desafios_seguidos += 1
+                if desafios_seguidos >= 3:
+                    break
+            time.sleep(3 + random.random() * 3)
+        if sondados_lua:
+            ok["lua sonda"] = sondados_lua
+            registra_intradia(h, "LUA", melhor_lua)
+        log(f"lua sonda: {sondados_lua} pares, {len(pos_feitos)} posicionamentos")
 
     # So carimba "ultima" se alguma coisa entrou; rodada 100% vazia nao
     # pode ganhar a arbitragem de ninguem.

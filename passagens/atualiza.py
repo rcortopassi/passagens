@@ -40,6 +40,20 @@ def roda(script, *args):
 def analisa():
     h = json.loads((BASE / "historico.json").read_text(encoding="utf-8"))
     alertas, resumo = [], []
+
+    # Lua de mel: a melhor oferta vigente do grupo inteiro (so o voo; o
+    # posicionamento aparece no painel). Alerta proprio quando houver base.
+    try:
+        from coletor import LUA_ROTAS, melhores_do_grupo
+        m = melhores_do_grupo(h, LUA_ROTAS, 1)
+        if m:
+            d, ida, volta = m[0]
+            ch = f"{d}|{(volta - ida).days}"
+            preco = h["radar"][ch][ida.isoformat()][-1][1]
+            resumo.append(f"Lua de mel: {d} {ida.strftime('%d/%m')} "
+                          f"R$ {preco:,}".replace(",", "."))
+    except Exception as e:
+        resumo.append(f"Lua de mel sem leitura ({type(e).__name__})")
     for dest in DESTINOS:
         por_dia = {}
         celulas = []

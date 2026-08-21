@@ -3,82 +3,104 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Passagens: Brasília para Europa, São Paulo, Rio e Belo Horizonte</title>
+<title>Passagens: Europa, São Paulo, Rio, Belo Horizonte e Lua de mel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f3a5f'/%3E%3Cg transform='translate(4 4)'%3E%3Cpath fill='%23e6edf3' d='M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z'/%3E%3C/g%3E%3C/svg%3E">
 <style>
+/* ESTILO A: "Bilhete de embarque" - claro, editorial, tipografia serifada */
 :root{
-  --fundo:#0d1117; --cartao:#161b22; --borda:#2d333b; --texto:#e6edf3;
-  --fraco:#8b949e; --azul:#4d9fff; --verde:#3fb950; --ambar:#d29922;
-  --vermelho:#f85149; --roxo:#bc8cff;
+  --fundo:#f7f3ec; --cartao:#fffdf9; --borda:#e3dccd; --texto:#231f18;
+  --fraco:#7a7264; --azul:#1d5c8f; --verde:#2e7d4f; --ambar:#b0701c;
+  --vermelho:#b3382e; --roxo:#7b5ea7;
 }
 *{box-sizing:border-box; margin:0; padding:0}
 body{background:var(--fundo); color:var(--texto);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  font-size:15px; line-height:1.5; padding:16px; max-width:1180px; margin:0 auto}
-h1{font-size:1.5em; font-weight:700; margin-bottom:2px}
-h2{font-size:1.1em; font-weight:600; margin:26px 0 10px}
-.sub{color:var(--fraco); font-size:.92em}
-.cartoes{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-  gap:12px; margin-top:14px}
+  font-family:Georgia,"Iowan Old Style","Times New Roman",serif;
+  font-size:16px; line-height:1.55; padding:26px 18px 60px;
+  max-width:1120px; margin:0 auto}
+h1{font-family:"Fraunces",Georgia,serif; font-size:2.4em; font-weight:700;
+  letter-spacing:-.01em; margin-bottom:4px}
+h2{font-family:"Fraunces",Georgia,serif; font-size:1.35em; font-weight:600;
+  margin:40px 0 10px; padding-top:18px; border-top:1px solid var(--borda)}
+.sub{color:var(--fraco); font-size:.85em;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+.cartoes{display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  gap:16px; margin-top:18px}
 .cartao{background:var(--cartao); border:1px solid var(--borda);
-  border-radius:14px; padding:14px 16px}
-.cartao .dest{font-weight:700; font-size:1.05em}
-.cartao .preco{font-size:1.7em; font-weight:800; margin:2px 0}
-.cartao .det{color:var(--fraco); font-size:.88em}
-.tag{display:inline-block; border-radius:999px; padding:1px 10px;
-  font-size:.78em; font-weight:600; margin-left:6px; vertical-align:2px}
-.tag.baixo{background:#12351c; color:var(--verde)}
-.tag.alto{background:#3d1d1d; color:var(--vermelho)}
-.tag.normal{background:#262c36; color:var(--fraco)}
-.tag.velho{background:#332b12; color:var(--ambar)}
-.aviso{border-radius:12px; padding:11px 15px; margin-top:14px;
-  border:1px solid var(--borda); background:var(--cartao); font-size:.94em}
-.aviso.bom{border-color:#1f6f34; background:#10241a}
+  border-radius:4px; padding:18px 20px;
+  box-shadow:0 1px 0 rgba(35,31,24,.04), 0 12px 28px -18px rgba(35,31,24,.25)}
+.cartao{border-top:none !important; border-left:4px solid var(--borda)}
+.cartao .dest{font-family:"Fraunces",Georgia,serif; font-weight:700;
+  font-size:1.2em}
+.cartao .preco{font-size:2em; font-weight:700; margin:4px 0;
+  font-family:"Fraunces",Georgia,serif; font-variant-numeric:tabular-nums}
+.cartao .det{color:var(--fraco); font-size:.8em;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+.tag{display:inline-block; border-radius:2px; padding:2px 9px;
+  font-size:.55em; font-weight:600; margin-left:8px; vertical-align:4px;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;
+  text-transform:uppercase; letter-spacing:.06em}
+.tag.baixo{background:#e3efe6; color:var(--verde)}
+.tag.alto{background:#f4e2e0; color:var(--vermelho)}
+.tag.normal{background:#eee9df; color:var(--fraco)}
+.tag.velho{background:#f2e8d8; color:var(--ambar)}
+.aviso{border-radius:4px; padding:13px 17px; margin-top:16px;
+  border:1px solid var(--borda); background:var(--cartao); font-size:.92em}
+.aviso.bom{border-color:#bcd8c4; background:#eef5ef}
 .aviso .t{font-weight:700}
-.abas{display:flex; gap:8px; margin:10px 0}
-.aba{border:1px solid var(--borda); background:var(--cartao); color:var(--texto);
-  border-radius:999px; padding:5px 16px; cursor:pointer; font-size:.92em}
-.aba.ativa{background:#1f3a5f; border-color:var(--azul); font-weight:600}
-.rolagem{overflow-x:auto; border:1px solid var(--borda); border-radius:12px;
-  background:var(--cartao); padding:10px}
-table.mapa{border-collapse:collapse; font-size:.72em}
-table.mapa th{color:var(--fraco); font-weight:500; padding:1px 3px;
-  position:sticky; left:auto}
-table.mapa th.dur{text-align:right; padding-right:6px; position:sticky; left:0;
+.abas{display:flex; gap:0; margin:14px 0; border-bottom:2px solid var(--texto);
+  flex-wrap:wrap}
+.aba{border:none; background:none; color:var(--fraco);
+  border-radius:0; padding:9px 18px; cursor:pointer; font-size:.95em;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+.aba.ativa{background:var(--texto); color:var(--fundo); font-weight:600}
+.rolagem{overflow-x:auto; border:1px solid var(--borda); border-radius:4px;
+  background:var(--cartao); padding:14px}
+table.mapa{border-collapse:collapse; font-size:.72em;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+table.mapa th{color:var(--fraco); font-weight:500; padding:1px 3px}
+table.mapa th.dur{text-align:right; padding-right:8px; position:sticky; left:0;
   background:var(--cartao)}
-table.mapa td{width:15px; height:15px; min-width:15px; border-radius:3px;
-  border:1px solid var(--fundo); cursor:default}
+table.mapa td{width:15px; height:15px; min-width:15px; border-radius:2px;
+  border:1px solid var(--cartao); cursor:default}
 table.mapa td.tem{cursor:pointer}
-table.mapa td.tem:hover{outline:1px solid var(--texto)}
+table.mapa td.tem:hover{outline:1.5px solid var(--texto)}
+canvas{width:100%; height:auto; display:block}
+.grade2{display:grid; grid-template-columns:1fr; gap:16px}
+@media(min-width:900px){.grade2{grid-template-columns:3fr 2fr}}
+.painel{background:var(--cartao); border:1px solid var(--borda);
+  border-radius:4px; padding:18px 20px;
+  box-shadow:0 12px 28px -20px rgba(35,31,24,.2)}
+table.lista{width:100%; border-collapse:collapse; font-size:.85em;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+table.lista th{color:var(--fraco); font-weight:600; text-align:left;
+  padding:6px 8px; border-bottom:2px solid var(--texto);
+  text-transform:uppercase; font-size:.78em; letter-spacing:.05em}
+table.lista td{padding:6px 8px; border-bottom:1px solid var(--borda)}
+table.lista td.num{text-align:right; font-variant-numeric:tabular-nums}
+.legenda{display:flex; gap:16px; flex-wrap:wrap; color:var(--fraco);
+  font-size:.8em; margin-top:8px;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+.legenda .cor{display:inline-block; width:10px; height:10px; border-radius:2px;
+  margin-right:5px}
+.nota{color:var(--fraco); font-size:.82em; margin-top:8px;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+.metodo{color:var(--fraco); font-size:.88em; margin-top:34px;
+  border-top:1px solid var(--borda); padding-top:16px}
+.metodo p{margin-bottom:9px}
+#dica{position:fixed; display:none; background:var(--texto); color:var(--fundo);
+  border:none; border-radius:3px; padding:7px 11px; font-size:.8em;
+  pointer-events:none; z-index:10; max-width:300px;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+.palpite{border-left:3px solid var(--ambar); padding-left:14px; margin-top:14px;
+  color:var(--fraco); font-size:.9em}
+.veredito{border-left:4px solid var(--verde); background:#eef5ef;
+  border-radius:0 4px 4px 0; padding:12px 16px; margin:12px 0 8px}
+.veredito b{color:var(--verde)}
 a.compra{color:inherit; text-decoration:none;
   border-bottom:1px dotted var(--fraco)}
 a.compra:hover{border-bottom:1px solid currentColor}
-canvas{width:100%; height:auto; display:block}
-.grade2{display:grid; grid-template-columns:1fr; gap:14px}
-@media(min-width:900px){.grade2{grid-template-columns:3fr 2fr}}
-.painel{background:var(--cartao); border:1px solid var(--borda);
-  border-radius:14px; padding:14px 16px}
-table.lista{width:100%; border-collapse:collapse; font-size:.9em}
-table.lista th{color:var(--fraco); font-weight:500; text-align:left;
-  padding:4px 8px; border-bottom:1px solid var(--borda)}
-table.lista td{padding:4px 8px; border-bottom:1px solid #21262d}
-table.lista td.num{text-align:right; font-variant-numeric:tabular-nums}
-.legenda{display:flex; gap:14px; flex-wrap:wrap; color:var(--fraco);
-  font-size:.84em; margin-top:6px}
-.legenda .cor{display:inline-block; width:10px; height:10px; border-radius:2px;
-  margin-right:4px}
-.nota{color:var(--fraco); font-size:.86em; margin-top:8px}
-.metodo{color:var(--fraco); font-size:.88em; margin-top:26px;
-  border-top:1px solid var(--borda); padding-top:14px}
-.metodo p{margin-bottom:8px}
-#dica{position:fixed; display:none; background:#21262d; border:1px solid var(--borda);
-  border-radius:8px; padding:6px 10px; font-size:.82em; pointer-events:none;
-  z-index:10; max-width:300px}
-.palpite{border-left:3px solid var(--fraco); padding-left:12px; margin-top:10px;
-  color:var(--fraco); font-size:.9em}
-.veredito{border-left:3px solid var(--verde); background:#10241a;
-  border-radius:0 10px 10px 0; padding:9px 14px; margin:10px 0 6px}
-.veredito b{color:var(--verde)}
 </style>
 </head>
 <body>
@@ -148,7 +170,11 @@ cache de calendário nem no site oficial: são lidas por busca completa, em
 rodízio de pares de datas, então cada célula do mapa tem uma idade; o painel a
 mostra. Belo Horizonte é de data marcada: um par só, lido por busca completa
 toda rodada, sem grade de datas. Preço vigente é o da última rodada; leitura
-velha fica marcada.</p>
+velha fica marcada. A aba Lua de mel varre 27 rotas (9 cidades por 3 origens),
+todas com calendário no Google: cada rodada lê uma fatia (trimestre e duração)
+e a grade inteira de 2027 se renova a cada 24 rodadas, mais a sonda horária
+dos 6 pares mais baratos do grupo com o posicionamento BSB nas mesmas
+datas.</p>
 <p><b>Conferência direta.</b> Para Congonhas, o painel também lê na mesma
 frequência a tarifa mais barata que a própria GOL anuncia no site dela (o
 cache que alimenta as páginas de ofertas do voegol.com.br). A busca completa
@@ -168,10 +194,32 @@ const H = /*__DADOS__*/{};
 const NOME = {LYS:"Lyon", GVA:"Genebra", LIS:"Lisboa",
               CGH:"Congonhas", SDU:"Santos Dumont", GIG:"Galeão",
               CNF:"Belo Horizonte"};
-const COR = {LYS:"#4d9fff", GVA:"#3fb950", LIS:"#d29922",
-             CGH:"#4d9fff", SDU:"#4d9fff", GIG:"#3fb950",
-             CNF:"#4d9fff"};
+const COR = {LYS:"#1d5c8f", GVA:"#2e7d4f", LIS:"#b0701c",
+             CGH:"#1d5c8f", SDU:"#1d5c8f", GIG:"#2e7d4f",
+             CNF:"#1d5c8f"};
 const ADULTOS = {LYS:2, GVA:2, LIS:2, CGH:1, SDU:2, GIG:2, CNF:2};
+// Aba Lua de mel: 9 cidades x 3 origens. A chave embute a origem quando nao
+// e BSB ("GRU:FCO" = Guarulhos para Roma). GRU2/GIG2 sao o posicionamento
+// BSB<->hub, 2 adultos, sondado nas mesmas datas da melhor oferta.
+const LUA_CIDADES = {FCO:"Roma", MXP:"Milão", CDG:"Paris", MAD:"Madri",
+  BCN:"Barcelona", BER:"Berlim", FRA:"Frankfurt", LAX:"Los Angeles",
+  YYZ:"Toronto"};
+const CORC = {FCO:"#b3382e", MXP:"#7b5ea7", CDG:"#1d5c8f", MAD:"#b0701c",
+  BCN:"#2e7d4f", BER:"#54524d", FRA:"#0e7490", LAX:"#b0487e", YYZ:"#4d7c0f"};
+const LUA_ORIGENS = {"":"BSB", "GRU:":"GRU", "GIG:":"GIG"};
+const LUA_ROTAS = [];
+for (const ia of Object.keys(LUA_CIDADES))
+  for (const pfx of Object.keys(LUA_ORIGENS)){
+    const k = pfx + ia;
+    LUA_ROTAS.push(k);
+    NOME[k] = LUA_CIDADES[ia] + " de " + LUA_ORIGENS[pfx];
+    ADULTOS[k] = 2;
+    COR[k] = CORC[ia];
+  }
+NOME.GRU2 = "BSB-Guarulhos"; NOME.GIG2 = "BSB-Galeão";
+ADULTOS.GRU2 = 2; ADULTOS.GIG2 = 2;
+const ROTA_EXTRA = {GRU2:["BSB","GRU"], GIG2:["BSB","GIG"]};
+const rotaDe = k => ROTA_EXTRA[k] || (k.includes(":") ? k.split(":") : ["BSB", k]);
 const GRUPOS = {
   europa: {nome:"Europa", destinos:["LYS","GVA","LIS"], padrao:"LIS",
     durMin:7, durMax:14, fixo:["2027-01-01","2027-03-18"],
@@ -229,8 +277,30 @@ const GRUPOS = {
         "conforme a data se aproxima. Com data fixa, a decisão é só de " +
         "QUANDO comprar: vale ficar de olho nas quedas até uns 2 meses antes " +
         "e não deixar para as últimas semanas."},
+  lua: {nome:"Lua de mel", destinos:LUA_ROTAS, padrao:"FCO",
+    durMin:7, durMax:12, fixo:["2027-01-01","2027-11-30"], lua:true,
+    intradiaExtra:["LUA"],
+    sub:"Caça à oportunidade para a viagem do casal em 2027: Roma é o alvo " +
+        "(com Milão como porta alternativa da Itália), comparada com Paris, " +
+        "Madri, Barcelona, Berlim, Frankfurt, Los Angeles e Toronto, a " +
+        "partir de Brasília, São Paulo (GRU) e Rio (GIG). Ida e volta, 2 " +
+        "adultos, econômica, 7 a 12 noites, partidas de janeiro a novembro " +
+        "de 2027. Quando a melhor oferta sai de GRU ou do Galeão, o painel " +
+        "soma o posicionamento BSB de ida e volta nas mesmas datas, porque " +
+        "o custo real inclui chegar lá. Preços TOTAIS para os dois.",
+    palpite:"<b>Palpite inicial, ainda não medido por este painel</b> " +
+        "(sazonalidade conhecida; vai sendo substituído pela medição): para " +
+        "a Europa, as partidas mais baratas ficam entre fim de janeiro e " +
+        "meados de março (fora o Carnaval) e de meados de outubro a " +
+        "novembro; o verão europeu (junho a agosto) é o pico. Toronto segue " +
+        "padrão parecido, com inverno rigoroso barato; Los Angeles é mais " +
+        "estável, com pico em julho e dezembro. Melhor época provável de " +
+        "compra: 4 a 7 meses antes da partida, com a Black Friday " +
+        "(26/11/2027 para partidas do fim do ano; a de 27/11/2026 já pega " +
+        "as partidas do 1º semestre) como evento de maior chance."},
 };
 const TODOS = Object.values(GRUPOS).flatMap(g=>g.destinos);
+TODOS.push("GRU2", "GIG2");   // posicionamento: precisa de series como os demais
 let grupoAtivo = "europa";
 const DEST = () => GRUPOS[grupoAtivo].destinos;
 const BASE_DIA = new Date(Date.UTC(2026,7,1));   // 2026-08-01
@@ -245,8 +315,9 @@ function tfsGoogle(dest, ida, volta){
   const int = (f,v)=>[...key(f,0),...vint(v)];
   const airport = (f,c)=>len(f,[...int(1,1),...str(2,c)]);
   const leg = (dt,a,b)=>len(3,[...str(2,dt),...airport(13,a),...airport(14,b)]);
+  const [ro, rd] = rotaDe(dest);
   const bytes = [...int(1,28),...int(2,2),
-    ...leg(ida,"BSB",dest),...leg(volta,dest,"BSB"),
+    ...leg(ida,ro,rd),...leg(volta,rd,ro),
     ...len(8,Array(ADULTOS[dest]||2).fill(1)),...int(9,1),...int(14,1),...int(19,1)];
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 }
@@ -298,7 +369,109 @@ function percentil(porDia, p){
 document.getElementById("carimbo").textContent =
   "Última coleta: " + (H.ultima ? H.ultima.replace("T"," ").slice(0,16) : "nenhuma ainda");
 
+function vigenteDe(dest){
+  const d = SD[dest];
+  if (!d) return null;
+  const hojeS = dstr(dataDeIdx(HOJE_IDX));
+  let melhor = null;
+  for (const [ch, c] of Object.entries(d.celulas))
+    if (c.idx >= d.ultimoIdx - 1 && ch.split("|")[0] > hojeS &&
+        (!melhor || c.preco < melhor.preco))
+      melhor = {...c, ch};
+  return melhor;
+}
+
+function cartoesLua(){
+  // A aba de caca a oportunidade nao mostra 27 cartoes: mostra a manchete da
+  // melhor oferta (com o posicionamento somado) e a matriz cidades x origens.
+  const el = document.getElementById("cartoes");
+  el.innerHTML = "";
+  document.getElementById("alertas").innerHTML = "";
+  const POS = {GRU: "GRU2", GIG: "GIG2"};
+  const ofertas = [];
+  for (const k of LUA_ROTAS){
+    const m = vigenteDe(k);
+    if (!m) continue;
+    const [ida, durS] = m.ch.split("|");
+    const dur = +durS;
+    const volta = new Date(ida + "T12:00:00Z");
+    volta.setUTCDate(volta.getUTCDate() + dur);
+    const orig = rotaDe(k)[0];
+    const ia = k.includes(":") ? k.split(":")[1] : k;
+    let pos = null, total = m.preco;
+    if (POS[orig]){
+      const pc = SD[POS[orig]] && SD[POS[orig]].celulas[m.ch];
+      if (pc){ pos = pc.preco; total += pos; }
+    }
+    ofertas.push({k, ia, orig, ida, dur, volta: dstr(volta), preco: m.preco,
+                  pos, total, posPend: orig !== "BSB" && pos === null,
+                  idade: HOJE_IDX - m.idx});
+  }
+  if (!ofertas.length){
+    el.innerHTML = `<div class="nota">ainda sem leituras deste grupo</div>`;
+    return;
+  }
+  ofertas.sort((a, b) => a.total - b.total);
+  const linha = o => {
+    const partes = [`${NOME[o.k]}: sair ${dbr(o.ida)}, voltar ${dbr(o.volta)}
+      (${o.dur} noites): <a class="compra" href="${linkGoogle(o.k, o.ida, o.volta)}"
+      target="_blank" rel="noopener">${fmt(o.preco)}</a> o voo`];
+    if (o.pos !== null) partes.push(`+ <a class="compra"
+      href="${linkGoogle(POS[o.orig], o.ida, o.volta)}" target="_blank"
+      rel="noopener">${fmt(o.pos)}</a> do posicionamento BSB, ida e volta =
+      <b>${fmt(o.total)}</b> para os dois`);
+    else if (o.posPend) partes.push(`(posicionamento BSB ainda sem leitura
+      nessas datas; entra na próxima sonda)`);
+    else partes.push(`<b>= ${fmt(o.total)}</b> para os dois, direto de Brasília`);
+    return partes.join(" ");
+  };
+  const melhor = ofertas[0];
+  const italia = ofertas.find(o => o.ia === "FCO" || o.ia === "MXP");
+  const av = document.createElement("div");
+  av.className = "aviso bom";
+  let t = `<span class="t">Melhor oferta do grupo agora:</span> ${linha(melhor)}.`;
+  if (italia && italia !== melhor){
+    const dif = italia.total - melhor.total;
+    t += `<br><span class="t">Itália (o alvo):</span> ${linha(italia)};
+      ${fmt(dif)} acima da melhor oferta geral.`;
+  }
+  av.innerHTML = t;
+  document.getElementById("alertas").appendChild(av);
+
+  // matriz cidades x origens: menor vigente por rota, com o total combinado
+  const porRota = {};
+  for (const o of ofertas) porRota[o.k] = o;
+  let html = `<div class="painel" style="grid-column:1/-1; overflow-x:auto">
+    <table class="lista"><tr><th>destino</th><th>de Brasília</th>
+    <th>de São Paulo (GRU)</th><th>do Rio (GIG)</th></tr>`;
+  for (const ia of Object.keys(LUA_CIDADES)){
+    const alvo = ia === "FCO" || ia === "MXP";
+    html += `<tr><td${alvo ? ' style="font-weight:700"' : ""}>
+      ${LUA_CIDADES[ia]}${alvo ? " *" : ""}</td>`;
+    for (const pfx of ["", "GRU:", "GIG:"]){
+      const o = porRota[pfx + ia];
+      if (!o){ html += `<td class="num" style="color:var(--fraco)">sem leitura</td>`; continue; }
+      const eMelhor = o === melhor;
+      const posTxt = o.pos !== null ? ` <span style="color:var(--fraco)">(voo ${fmt(o.preco)} + posic. ${fmt(o.pos)})</span>`
+                   : o.posPend ? ` <span style="color:var(--fraco)">(só o voo; posic. pendente)</span>` : "";
+      html += `<td class="num"${eMelhor ? ' style="background:#eef5ef"' : ""}>
+        <a class="compra" href="${linkGoogle(o.k, o.ida, o.volta)}" target="_blank"
+        rel="noopener"><b>${fmt(o.total)}</b></a>${posTxt}
+        <br><span style="color:var(--fraco)">${dbr(o.ida)} · ${o.dur}n${o.idade > 1 ? " · leitura de " + o.idade + "d atrás" : ""}</span></td>`;
+    }
+    html += "</tr>";
+  }
+  html += `</table><div class="nota">* Itália é o alvo da viagem; as outras
+    cidades servem de régua de oportunidade. O total soma o posicionamento
+    BSB de ida e volta (2 adultos, mesmas datas) quando a origem é GRU ou
+    Galeão; o posicionamento é sondado por hora só para os pares mais baratos,
+    então células fora do topo podem mostrar só o voo. Clique no preço para
+    abrir a compra.</div></div>`;
+  el.innerHTML = html;
+}
+
 function cartoes(){
+  if (GRUPOS[grupoAtivo].lua){ cartoesLua(); return; }
   const el = document.getElementById("cartoes");
   el.innerHTML = "";
   document.getElementById("alertas").innerHTML = "";
@@ -448,7 +621,7 @@ function mapa(){
     html += `<tr><th class='dur'>${dur}n</th>`;
     for (const dt of datas){
       const c = d.celulas[dt+"|"+dur];
-      const cor = c ? corPreco(c.preco, min, max) : "#1c2128";
+      const cor = c ? corPreco(c.preco, min, max) : "#efe9dc";
       const idade = c ? HOJE_IDX - c.idx : null;
       html += `<td class="${c?'tem':''}" style="background:${cor}" data-d="${dt}"
         data-dur="${dur}" data-p="${c?c.preco:''}" data-i="${idade??''}"></td>`;
@@ -482,7 +655,7 @@ function mapa(){
     `<span><span class="cor" style="background:hsl(120 65% 38%)"></span>${fmt(min)}</span>` +
     `<span><span class="cor" style="background:hsl(60 65% 33%)"></span>meio</span>` +
     `<span><span class="cor" style="background:hsl(0 65% 28%)"></span>${fmt(max)}</span>` +
-    `<span><span class="cor" style="background:#1c2128"></span>sem leitura</span>`;
+    `<span><span class="cor" style="background:#efe9dc"></span>sem leitura</span>`;
 }
 /* ---------- grafico de linhas generico ---------- */
 function desenhaLinhas(cv, series, opts){
@@ -495,7 +668,7 @@ function desenhaLinhas(cv, series, opts){
   cv.style.height = HT+"px";
   ctx.clearRect(0,0,W,HT);
   const todos = series.flatMap(s=>s.pontos);
-  if (!todos.length){ ctx.fillStyle="#8b949e"; ctx.font="13px sans-serif";
+  if (!todos.length){ ctx.fillStyle="#7a7264"; ctx.font="13px sans-serif";
     ctx.fillText("ainda sem dados suficientes", 20, 40); return; }
   const xs = todos.map(p=>p[0]), ys = todos.map(p=>p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
@@ -504,7 +677,7 @@ function desenhaLinhas(cv, series, opts){
   const ML=64, MR=10, MT=10, MB=26;
   const px = x => ML + (x1===x0 ? 0.5 : (x-x0)/(x1-x0)) * (W-ML-MR);
   const py = y => MT + (1-(y-y0)/(y1-y0)) * (HT-MT-MB);
-  ctx.strokeStyle="#2d333b"; ctx.fillStyle="#8b949e"; ctx.font="11px sans-serif";
+  ctx.strokeStyle="#e3dccd"; ctx.fillStyle="#7a7264"; ctx.font="11px sans-serif";
   const passos = 5;
   for (let i=0;i<=passos;i++){
     const y = y0 + (y1-y0)*i/passos;
@@ -538,6 +711,26 @@ function desenhaLinhas(cv, series, opts){
 /* ---------- serie temporal por destino ---------- */
 function serieTemporal(){
   const series = [], leg = [];
+  if (GRUPOS[grupoAtivo].lua){
+    // uma linha por CIDADE: o menor preco do dia entre as tres origens
+    for (const ia of Object.keys(LUA_CIDADES)){
+      const porDia = {};
+      for (const pfx of ["", "GRU:", "GIG:"]){
+        const d = SD[pfx + ia];
+        if (!d) continue;
+        for (const [i, p] of Object.entries(d.porDia))
+          if (!(i in porDia) || p < porDia[i]) porDia[i] = p;
+      }
+      const pts = Object.entries(porDia).map(([i, p]) => [+i, p]);
+      if (!pts.length) continue;
+      series.push({nome: LUA_CIDADES[ia], cor: CORC[ia], pontos: pts});
+      leg.push(`<span><span class="cor" style="background:${CORC[ia]}"></span>${LUA_CIDADES[ia]}</span>`);
+    }
+    desenhaLinhas(document.getElementById("serie"), series, {});
+    document.getElementById("legSerie").innerHTML = leg.join("") +
+      `<span>cada linha: menor preço do dia da cidade, entre as três origens (só o voo, sem posicionamento)</span>`;
+    return;
+  }
   for (const dest of DEST()){
     const d = SD[dest];
     const pts = Object.entries(d.porDia).map(([i,p])=>[+i,p]);
@@ -568,8 +761,10 @@ function momentoCompra(){
   const porWd = Array.from({length:7}, ()=>[]);
   const diasCom = new Set();
   let total = 0;
+  const chavesIntra = new Set([...DEST(),
+    ...(GRUPOS[grupoAtivo].intradiaExtra || [])]);
   for (const [idest, serie] of Object.entries(H.intradia || {})){
-    if (!DEST().includes(idest)) continue;
+    if (!chavesIntra.has(idest)) continue;
     // agrupa por dia
     const porDia = {};
     for (const [hi, p] of serie){
@@ -613,7 +808,7 @@ function momentoCompra(){
   }
   const media = v => v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
   const pct = x => (x>0?"+":"") + (100*x).toFixed(1).replace(".", ",") + "%";
-  const corDev = d => d==null ? "#1c2128" :
+  const corDev = d => d==null ? "#efe9dc" :
     `hsl(${d<0?120:0} 60% ${34 - Math.min(18, Math.abs(d)*600)}%)`;
   const strip = (rotulos, devs, ns, minN, unidade) => {
     let s = "<table class='mapa'><tr>";
@@ -623,7 +818,7 @@ function momentoCompra(){
       const ok = ns[i] >= minN;
       const titulo = ok ? `média ${pct(devs[i])} em ${ns[i]} ${unidade}`
                         : `só ${ns[i]} ${unidade}, sem base`;
-      s += `<td class="tem" style="background:${ok?corDev(devs[i]):'#1c2128'}"
+      s += `<td class="tem" style="background:${ok?corDev(devs[i]):'#efe9dc'}"
         title="${rotulos[i]}: ${titulo}"></td>`;
     }
     return s + "</tr></table>";
@@ -694,8 +889,8 @@ function abasCia(){
     el.appendChild(b);
   }
 }
-const PALETA = ["#4d9fff","#3fb950","#d29922","#f85149","#bc8cff","#39c5cf",
-                "#ff9bce","#9ece6a","#e0af68","#7dcfff"];
+const PALETA = ["#1d5c8f","#2e7d4f","#b0701c","#b3382e","#7b5ea7","#0e7490",
+                "#b0487e","#4d7c0f","#92400e","#155e75"];
 function porCia(){
   // voos: "DEST|ida|volta" -> [[idx, [[cias,preco,paradas,dur]...]]...]
   const porCiaDia = {};   // cias -> {idx: menor preco}
