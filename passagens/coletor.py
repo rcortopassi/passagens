@@ -162,6 +162,10 @@ SEM_PAGINA = ("LYS", "GVA")
 # nao insiste na RPC: vai direto a pagina HTML. Nao pode ser na primeira: no
 # Actions a recusa aparece solta de vez em quando e a RPC volta na chamada
 # seguinte (em 26/09/2026 uma recusa isolada desligou meia rodada de CI).
+# E no Actions a marca nunca liga: la as recusas vem em rajadas que passam
+# (a rodada das 08h49 de 26/09 teve varias e ainda leu Lyon e Genebra; com a
+# marca, a das 10h34 parou no meio da Lua de mel). Cada recusa em CI so
+# desvia aquela chamada para a pagina.
 RECUSAS_BARRADA = 3
 RPC_BARRADA = False
 _recusas_seguidas = 0
@@ -293,7 +297,8 @@ def _rpc_respondeu():
 def _marca_rpc_barrada(bloco):
     global RPC_BARRADA, _recusas_seguidas
     _recusas_seguidas += 1
-    if not RPC_BARRADA and _recusas_seguidas >= RECUSAS_BARRADA:
+    if (not DATACENTER and not RPC_BARRADA
+            and _recusas_seguidas >= RECUSAS_BARRADA):
         RPC_BARRADA = True
         log(f"RPC do Google recusada (codigo {_codigo_erro(bloco)}); "
             f"seguindo pela pagina de resultados")
