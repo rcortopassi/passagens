@@ -157,10 +157,14 @@ DATACENTER = os.environ.get("PASSAGENS_DATACENTER") == "1"
 # ficam para a rodada do Actions em vez de gastar o disjuntor de desafios.
 SEM_PAGINA = ("LYS", "GVA")
 
-# Vira True na primeira recusa da RPC nesta execucao (wrb.fr com codigo de
-# erro no lugar do payload, tipicamente [13]). A partir dai a rodada nao
-# insiste na RPC: vai direto a pagina HTML.
+# Vira True depois de RECUSAS_BARRADA recusas SEGUIDAS da RPC (wrb.fr com
+# codigo de erro no lugar do payload, tipicamente [13]). A partir dai a rodada
+# nao insiste na RPC: vai direto a pagina HTML. Nao pode ser na primeira: no
+# Actions a recusa aparece solta de vez em quando e a RPC volta na chamada
+# seguinte (em 26/09/2026 uma recusa isolada desligou meia rodada de CI).
+RECUSAS_BARRADA = 3
 RPC_BARRADA = False
+_recusas_seguidas = 0
 
 _dec = json.JSONDecoder()
 
@@ -235,7 +239,11 @@ def busca_completa(dest, ida, volta, tentativas=None):
                         # antes aparecia como TypeError no json.loads.
                         _marca_rpc_barrada(data[0])
                         ultimo = f"RPC recusada (codigo {_codigo_erro(data[0])})"
-                        break
+                        if RPC_BARRADA:
+                            break
+                        if i < tent - 1:
+                            time.sleep(10)
+                        continue
                     p = json.loads(data[0][2])
                     its = []
                     for bi in (2, 3):
@@ -246,6 +254,7 @@ def busca_completa(dest, ida, volta, tentativas=None):
                             v = _le_itinerario(it)
                             if v:
                                 its.append(v)
+                    _rpc_respondeu()
                     if its:
                         return its, _le_insights(p)
                     # rota com data valida nunca vem vazia de verdade
@@ -276,9 +285,15 @@ def _codigo_erro(bloco):
         return "?"
 
 
+def _rpc_respondeu():
+    global _recusas_seguidas
+    _recusas_seguidas = 0
+
+
 def _marca_rpc_barrada(bloco):
-    global RPC_BARRADA
-    if not RPC_BARRADA:
+    global RPC_BARRADA, _recusas_seguidas
+    _recusas_seguidas += 1
+    if not RPC_BARRADA and _recusas_seguidas >= RECUSAS_BARRADA:
         RPC_BARRADA = True
         log(f"RPC do Google recusada (codigo {_codigo_erro(bloco)}); "
             f"seguindo pela pagina de resultados")
@@ -431,6 +446,7 @@ def calendario(dest, dur, ini, fim):
                 _marca_rpc_barrada(data[0])
                 raise RuntimeError(f"RPC recusada (codigo {_codigo_erro(data[0])})")
             payload = json.loads(data[0][2])
+            _rpc_respondeu()
             out = []
             for dia in payload[1] or []:
                 if dia[2]:
