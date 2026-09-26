@@ -34,6 +34,7 @@ Regras herdadas dos outros coletores (precos, takemehome):
     compara com o publicado e parte do que tiver a coleta MAIS RECENTE.
   - Campo ausente nunca vira zero.
 """
+import base64
 import json
 import os
 import re
@@ -151,6 +152,16 @@ TZ_BSB = timezone(timedelta(hours=-3))
 
 DATACENTER = os.environ.get("PASSAGENS_DATACENTER") == "1"
 
+# Rotas que a pagina HTML (segunda porta) nao cobre: sem cache global no
+# Google, o SSR vem com ds:1 sem itinerarios. Quando a RPC esta barrada, elas
+# ficam para a rodada do Actions em vez de gastar o disjuntor de desafios.
+SEM_PAGINA = ("LYS", "GVA")
+
+# Vira True na primeira recusa da RPC nesta execucao (wrb.fr com codigo de
+# erro no lugar do payload, tipicamente [13]). A partir dai a rodada nao
+# insiste na RPC: vai direto a pagina HTML.
+RPC_BARRADA = False
+
 _dec = json.JSONDecoder()
 
 
@@ -196,7 +207,9 @@ def busca_completa(dest, ida, volta, tentativas=None):
     inner = [[], spec, 0, 0, 0, 1]
     freq = json.dumps([None, json.dumps(inner)])
     tent = tentativas or (1 if DATACENTER else 3)
-    ultimo = None
+    if RPC_BARRADA:
+        tent = 0          # ja sabemos a resposta; direto a segunda porta
+    ultimo = "RPC recusada nesta rodada" if RPC_BARRADA else None
     for i in range(tent):
         try:
             r = rq.post(
@@ -216,6 +229,13 @@ def busca_completa(dest, ida, volta, tentativas=None):
                     ultimo = "resposta sem wrb.fr (challenge provavel)"
                 else:
                     data, _ = _dec.raw_decode(r.text[idx:])
+                    if data[0][2] is None:
+                        # Recusa, nao resposta vazia: o erro vem em data[0][5].
+                        # E o bloqueio por IP visto em 28/08 e 26/09/2026, que
+                        # antes aparecia como TypeError no json.loads.
+                        _marca_rpc_barrada(data[0])
+                        ultimo = f"RPC recusada (codigo {_codigo_erro(data[0])})"
+                        break
                     p = json.loads(data[0][2])
                     its = []
                     for bi in (2, 3):
@@ -234,7 +254,91 @@ def busca_completa(dest, ida, volta, tentativas=None):
             ultimo = f"{type(e).__name__}: {e}"
         if i < tent - 1:
             time.sleep(10)
+    # Segunda porta: a pagina de resultados, que o Google continua servindo
+    # quando barra a RPC (conferido em 26/09/2026: RPC com [13] em todos os
+    # perfis de navegador, pagina com os mesmos 8 itinerarios e o mesmo
+    # preco). So rende para rota com cache global.
+    if rota_de(dest)[1] not in SEM_PAGINA:
+        try:
+            its, ins = busca_pagina(dest, ida, volta)
+            if its:
+                return its, ins
+            ultimo = f"{ultimo}; pagina sem itinerarios"
+        except Exception as e:
+            ultimo = f"{ultimo}; pagina: {type(e).__name__}: {e}"
     raise RuntimeError(ultimo or "sem resposta")
+
+
+def _codigo_erro(bloco):
+    try:
+        return bloco[5][0]
+    except (IndexError, TypeError):
+        return "?"
+
+
+def _marca_rpc_barrada(bloco):
+    global RPC_BARRADA
+    if not RPC_BARRADA:
+        RPC_BARRADA = True
+        log(f"RPC do Google recusada (codigo {_codigo_erro(bloco)}); "
+            f"seguindo pela pagina de resultados")
+
+
+def _pb_varint(n):
+    out = b""
+    while True:
+        b, n = n & 0x7F, n >> 7
+        if not n:
+            return out + bytes([b])
+        out += bytes([b | 0x80])
+
+
+def _pb(campo, valor):
+    if isinstance(valor, int):
+        return _pb_varint(campo << 3) + _pb_varint(valor)
+    if isinstance(valor, str):
+        valor = valor.encode()
+    return _pb_varint(campo << 3 | 2) + _pb_varint(len(valor)) + valor
+
+
+def tfs(dest, ida, volta):
+    """Protobuf da URL de resultados do Google Voos (mesmo formato do link
+    "abrir no Google Voos" do template): pernas no campo 3 (data no 2,
+    aeroportos em 13/14), um 1 no campo 8 por adulto, economica no 9, ida e
+    volta no 19."""
+    orig, iata = rota_de(dest)
+    perna = lambda d, a, b: _pb(2, d) + _pb(13, _pb(2, a)) + _pb(14, _pb(2, b))
+    m = _pb(3, perna(ida, orig, iata)) + _pb(3, perna(volta, iata, orig))
+    m += b"".join(_pb(8, 1) for _ in range(adultos_de(dest)))
+    m += _pb(9, 1) + _pb(19, 1)
+    return base64.urlsafe_b64encode(m).decode().rstrip("=")
+
+
+def busca_pagina(dest, ida, volta):
+    """Busca pela pagina HTML: o bloco ds:1 tem o mesmo formato do payload da
+    GetShoppingResults (itinerarios em p[2]/p[3], insights em p[5]), mas traz
+    so a primeira pagina de resultados. Devolve (itinerarios, insights)."""
+    r = rq.get("https://www.google.com/travel/flights/search",
+               params={"tfs": tfs(dest, ida, volta), "hl": "pt-BR",
+                       "gl": "BR", "curr": "BRL"},
+               impersonate="chrome", timeout=60,
+               cookies={"CONSENT": "YES+cb.20240101-00-p0.en+FX+000"})
+    if r.status_code != 200:
+        raise RuntimeError(f"HTTP {r.status_code}")
+    m = re.search(r"AF_initDataCallback\(\{key: 'ds:1'", r.text)
+    if not m:
+        raise RuntimeError("pagina sem ds:1 (challenge provavel)")
+    p, _ = _dec.raw_decode(r.text[r.text.find("data:", m.start()) + 5:])
+    its = []
+    for bi in (2, 3):
+        bloco = p[bi] if len(p) > bi else None
+        if not bloco or not isinstance(bloco, list) or not bloco[0]:
+            continue
+        for it in bloco[0]:
+            v = _le_itinerario(it)
+            if v:
+                its.append(v)
+    return its, _le_insights(p)
 
 
 def _le_itinerario(it):
@@ -296,6 +400,10 @@ def calendario(dest, dur, ini, fim):
     inner = [None, spec, [ini.isoformat(), fim.isoformat()],
              None, [dur, dur]]
     freq = json.dumps([None, json.dumps(inner)])
+    if RPC_BARRADA:
+        # O calendario nao tem pagina equivalente; sem a RPC, fica para o
+        # Actions (ver atualiza.py).
+        raise RuntimeError("RPC recusada nesta rodada")
     tent = 1 if DATACENTER else 2
     ultimo = None
     for i in range(tent):
@@ -317,6 +425,11 @@ def calendario(dest, dur, ini, fim):
                 ultimo = "resposta sem wrb.fr"
                 continue
             data, _ = _dec.raw_decode(r.text[idx:])
+            if data[0][2] is None:
+                # Recusa. Nao confundir com a faixa de duracao rejeitada
+                # (Lua de mel, [7,12]): aqui a duracao e sempre [dur,dur].
+                _marca_rpc_barrada(data[0])
+                raise RuntimeError(f"RPC recusada (codigo {_codigo_erro(data[0])})")
             payload = json.loads(data[0][2])
             out = []
             for dia in payload[1] or []:
@@ -327,6 +440,8 @@ def calendario(dest, dur, ini, fim):
             return out
         except Exception as e:
             ultimo = f"{type(e).__name__}: {e}"
+            if RPC_BARRADA:
+                break
         time.sleep(8)
     raise RuntimeError(ultimo or "sem resposta")
 
@@ -685,6 +800,9 @@ def rodada():
     lini, lfim = LUA_JANELAS[wi]
     total_lua, falhas_lua = 0, 0
     for rkey in LUA_ROTAS:
+        if RPC_BARRADA:
+            log("lua: RPC recusada; a fatia fica para a proxima rodada")
+            break
         try:
             dias = calendario(rkey, ldur, lini, lfim)
             uteis = 0
@@ -700,7 +818,8 @@ def rodada():
                 log("lua: 5 rotas seguidas falhando; deixo o resto para a proxima")
                 break
         time.sleep(1.5 + random.random() * 1.5)
-    h["rodizio"]["lua"] = (pos_lua + 1) % len(fatias)
+    if not RPC_BARRADA:
+        h["rodizio"]["lua"] = (pos_lua + 1) % len(fatias)
     log(f"lua: janela {wi + 1}/4, {ldur} noites: {total_lua} datas")
     if total_lua:
         ok["lua radar"] = total_lua
@@ -709,6 +828,9 @@ def rodada():
     pares = ordem_rodizio(pares_validos())
     desafios_seguidos = 0
     for dest in ROTATIVOS:
+        if RPC_BARRADA and dest in SEM_PAGINA:
+            log(f"busca {dest}: RPC recusada e rota sem pagina; fica para o Actions")
+            continue
         pos = h["rodizio"].get(dest, 0)
         feitos = 0
         for i in range(ROTATIVAS_POR_DESTINO):
@@ -741,6 +863,8 @@ def rodada():
         for dest in DESTINOS:
             if dest in FIXOS:
                 continue          # par unico, ja lido inteiro no passo 1c
+            if RPC_BARRADA and dest in SEM_PAGINA:
+                continue          # sem RPC nao ha porta para esta rota
             n = MELHORES_POR_DESTINO if dest != "LIS" else MELHORES_POR_DESTINO * 2
             sondados = 0
             melhor_da_sonda = None
@@ -814,6 +938,7 @@ def rodada():
         "fonte": fonte,
         "ok": ok,
         "falhas": falhas,
+        "rpc_barrada": RPC_BARRADA,
         "dur_s": int((agora() - inicio).total_seconds()),
     })
     h["rodadas"] = h["rodadas"][-200:]

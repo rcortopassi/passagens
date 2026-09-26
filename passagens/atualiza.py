@@ -12,6 +12,7 @@ Regra do alerta (a pedido do usuario: "quando estiver abaixo da media"):
 Sem base suficiente, a linha diz quantos dias de base ja ha.
 """
 import json
+import os
 import subprocess
 import sys
 from datetime import date
@@ -26,6 +27,10 @@ NOME = {"LYS": "Lyon", "GVA": "Genebra", "LIS": "Lisboa",
         "CNF": "Belo Horizonte"}
 FOLGA = 0.97
 BASE_MINIMA_DIAS = 14
+REPO = "rcortopassi/passagens"
+# Rodada local com tantas falhas ou mais conta como barrada mesmo sem a
+# recusa explicita da RPC (challenge que vem de outro jeito).
+FALHAS_BARRADA = 15
 
 
 def roda(script, *args):
@@ -94,9 +99,46 @@ def analisa():
     return alertas, resumo
 
 
+def reforco_actions():
+    """Terceiro degrau contra o bloqueio do IP de casa (26/09/2026).
+
+    O primeiro e a propria RPC; o segundo, a pagina de resultados, que cobre
+    o par de BH, as sondas e a Lua de mel, mas nao o calendario nem Lyon e
+    Genebra. Se a rodada local saiu barrada, dispara na hora uma rodada do
+    Actions (IP de datacenter, que o Google trata a parte), com forcar=true
+    para pular a guarda de 45 min: o historico acabou de ser publicado com a
+    rodada local e a guarda acharia o painel fresco. Devolve uma frase para a
+    linha final, ou None se nao foi preciso.
+    """
+    if os.environ.get("GITHUB_ACTIONS"):
+        return None       # o Actions nao chama a si mesmo
+    try:
+        h = json.loads((BASE / "historico.json").read_text(encoding="utf-8"))
+        r = h["rodadas"][-1]
+    except Exception:
+        return None
+    if r.get("fonte") != "mac":
+        return None
+    falhas = len(r.get("falhas") or {})
+    if not r.get("rpc_barrada") and falhas < FALHAS_BARRADA:
+        return None
+    p = subprocess.run(["gh", "workflow", "run", "passagens.yml",
+                        "--repo", REPO, "-f", "forcar=true"],
+                       capture_output=True, text=True)
+    if p.returncode != 0:
+        erro = (p.stderr or p.stdout).strip().splitlines()
+        print(f"reforco: disparo do Actions falhou: {erro[-1] if erro else p.returncode}")
+        return (f"coleta local barrada pelo Google ({falhas} falhas) e o "
+                f"disparo do Actions FALHOU")
+    print(f"reforco: rodada local barrada ({falhas} falhas); Actions disparado")
+    return (f"coleta local barrada pelo Google ({falhas} falhas); rodada do "
+            f"Actions disparada para cobrir calendario, Lyon e Genebra")
+
+
 def main():
     rc_coleta = roda("coletor.py")
     rc_pagina = roda("pagina.py")
+    reforco = reforco_actions()
     if rc_pagina != 0:
         print("ALERTA: o painel NAO foi publicado nesta rodada; ver erros acima")
         return 1
@@ -106,6 +148,8 @@ def main():
         print(f"aviso: analise falhou ({type(e).__name__}: {e})")
         alertas, resumo = [], []
     sufixo = "; ".join(resumo) if resumo else "sem resumo"
+    if reforco:
+        sufixo += f"; {reforco}"
     if rc_coleta != 0:
         print(f"ALERTA: rodada de coleta vazia (painel republicado com o que havia); {sufixo}")
         return 1
