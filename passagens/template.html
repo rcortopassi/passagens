@@ -314,12 +314,12 @@ const GRUPOS = {
 };
 const TODOS = Object.values(GRUPOS).flatMap(g=>g.destinos);
 TODOS.push("GRU2", "GIG2");   // posicionamento: precisa de series como os demais
-let grupoAtivo = "europa";
+let grupoAtivo = "sp";   // abre em Sao Paulo (pedido de 02/10/2026)
 // Filtro de cidade (02/10/2026): o painel abre pela cidade escolhida no alto.
 // cidadeAtiva = null mostra o grupo inteiro (comparacao entre destinos);
 // nos grupos domesticos e Europa a cidade e a sigla do destino; na Baby Moon
 // e a sigla da cidade, somando as tres origens.
-let cidadeAtiva = null;
+let cidadeAtiva = "CGH";
 const iataDe = k => k.includes(":") ? k.split(":")[1] : k;
 const DEST = () => {
   const d = GRUPOS[grupoAtivo].destinos;
