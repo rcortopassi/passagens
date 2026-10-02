@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Passagens: Europa, São Paulo, Rio, Belo Horizonte e Baby Moon</title>
+<title>Passagens: Europa, São Paulo, Rio e Baby Moon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f3a5f'/%3E%3Cg transform='translate(4 4)'%3E%3Cpath fill='%23e6edf3' d='M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z'/%3E%3C/g%3E%3C/svg%3E">
@@ -55,6 +55,15 @@ h2{font-family:"Fraunces",Georgia,serif; font-size:1.35em; font-weight:600;
   border-radius:0; padding:9px 18px; cursor:pointer; font-size:.95em;
   font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
 .aba.ativa{background:var(--texto); color:var(--fundo); font-weight:600}
+.filtro{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin:12px 0 8px; padding:12px 16px; background:var(--cartao);
+  border:1px solid var(--borda); border-radius:6px}
+.filtro label{font-weight:600; font-size:.95em}
+.filtro select{font-size:1.05em; padding:8px 36px 8px 12px; min-width:260px;
+  border:1px solid var(--texto); border-radius:4px; background:var(--fundo);
+  color:var(--texto); cursor:pointer;
+  font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+.filtro .grupo{color:var(--fraco); font-size:.9em}
 .rolagem{overflow-x:auto; border:1px solid var(--borda); border-radius:4px;
   background:var(--cartao); padding:14px}
 table.mapa{border-collapse:collapse; font-size:.72em;
@@ -127,7 +136,9 @@ html[data-theme="dark"] .palpite{border-left-color:var(--ambar)}
 <body>
 <button class="botao-tema" id="botaoTema" onclick="alternaTema()"></button>
 <h1>Passagens</h1>
-<div class="abas" id="abasGrupo" style="margin:12px 0 8px"></div>
+<div class="filtro"><label for="selCidade">Cidade</label>
+<select id="selCidade" onchange="trocaCidade(this.value)"></select>
+<span class="grupo" id="filtroGrupo"></span></div>
 <div class="sub" id="subGrupo"></div>
 <div class="sub" id="carimbo"></div>
 
@@ -190,9 +201,7 @@ filtrar por mala. Antes de comprar, conferir a franquia no site da companhia.</p
 completo no Google e são lidos inteiros a cada rodada. Lyon e Genebra não têm
 cache de calendário nem no site oficial: são lidas por busca completa, em
 rodízio de pares de datas, então cada célula do mapa tem uma idade; o painel a
-mostra. Belo Horizonte é de data marcada: um par só, lido por busca completa
-toda rodada, sem grade de datas. Preço vigente é o da última rodada; leitura
-velha fica marcada. A aba Baby Moon varre 27 rotas (9 cidades por 3 origens),
+mostra. Preço vigente é o da última rodada; leitura velha fica marcada. A aba Baby Moon varre 27 rotas (9 cidades por 3 origens),
 todas com calendário no Google: cada rodada lê uma fatia (trimestre e duração)
 e a grade inteira de 2027 se renova a cada 24 rodadas, mais a sonda horária
 dos 6 pares mais baratos do grupo com o posicionamento BSB nas mesmas
@@ -214,12 +223,10 @@ primeiras semanas não há base para média e o painel diz isso em vez de invent
 "use strict";
 const H = /*__DADOS__*/{};
 const NOME = {LYS:"Lyon", GVA:"Genebra", LIS:"Lisboa",
-              CGH:"Congonhas", SDU:"Santos Dumont", GIG:"Galeão",
-              CNF:"Belo Horizonte"};
+              CGH:"Congonhas", SDU:"Santos Dumont", GIG:"Galeão"};
 const COR = {LYS:"#1d5c8f", GVA:"#2e7d4f", LIS:"#b0701c",
-             CGH:"#1d5c8f", SDU:"#1d5c8f", GIG:"#2e7d4f",
-             CNF:"#1d5c8f"};
-const ADULTOS = {LYS:2, GVA:2, LIS:2, CGH:1, SDU:2, GIG:2, CNF:2};
+             CGH:"#1d5c8f", SDU:"#1d5c8f", GIG:"#2e7d4f"};
+const ADULTOS = {LYS:2, GVA:2, LIS:2, CGH:1, SDU:2, GIG:2};
 // Aba Lua de mel: 9 cidades x 3 origens. A chave embute a origem quando nao
 // e BSB ("GRU:FCO" = Guarulhos para Roma). GRU2/GIG2 sao o posicionamento
 // BSB<->hub, 2 adultos, sondado nas mesmas datas da melhor oferta.
@@ -283,22 +290,6 @@ const GRUPOS = {
         "janelas tradicionalmente baratas são de abril a junho e de agosto " +
         "a novembro. Comprar de 1 a 3 meses antes costuma pegar os menores " +
         "preços."},
-  bh: {nome:"Belo Horizonte", destinos:["CNF"], padrao:"CNF",
-    durMin:2, durMax:2, fixo:["2027-01-08","2027-01-08"],
-    sub:"Brasília (BSB) para Belo Horizonte Confins (CNF); ida e volta, " +
-        "2 adultos, econômica. Viagem de DATA MARCADA: ida em 08/01/2027 e " +
-        "volta em 10/01/2027 (2 noites). Como a data não muda, aqui não há " +
-        "grade de datas a comparar: o painel acompanha o preço desse par ao " +
-        "longo do tempo e avisa quando ele cair abaixo da própria média. " +
-        "Preços em reais, TOTAL para os dois passageiros.",
-    palpite:"<b>Palpite inicial, ainda não medido por este painel</b> " +
-        "(sazonalidade conhecida do mercado doméstico; vai sendo substituído " +
-        "pela medição): 8 de janeiro é volta de férias, trecho curto e muito " +
-        "servido, com voo direto de pouco mais de uma hora; a primeira " +
-        "quinzena de janeiro costuma ser cara e a tendência é o preço subir " +
-        "conforme a data se aproxima. Com data fixa, a decisão é só de " +
-        "QUANDO comprar: vale ficar de olho nas quedas até uns 2 meses antes " +
-        "e não deixar para as últimas semanas."},
   lua: {nome:"Baby Moon", destinos:LUA_ROTAS, padrao:"FCO",
     durMin:7, durMax:12, fixo:["2027-01-01","2027-11-30"], lua:true,
     intradiaExtra:["LUA"],
@@ -324,7 +315,18 @@ const GRUPOS = {
 const TODOS = Object.values(GRUPOS).flatMap(g=>g.destinos);
 TODOS.push("GRU2", "GIG2");   // posicionamento: precisa de series como os demais
 let grupoAtivo = "europa";
-const DEST = () => GRUPOS[grupoAtivo].destinos;
+// Filtro de cidade (02/10/2026): o painel abre pela cidade escolhida no alto.
+// cidadeAtiva = null mostra o grupo inteiro (comparacao entre destinos);
+// nos grupos domesticos e Europa a cidade e a sigla do destino; na Baby Moon
+// e a sigla da cidade, somando as tres origens.
+let cidadeAtiva = null;
+const iataDe = k => k.includes(":") ? k.split(":")[1] : k;
+const DEST = () => {
+  const d = GRUPOS[grupoAtivo].destinos;
+  return cidadeAtiva ? d.filter(k => iataDe(k) === cidadeAtiva) : d;
+};
+const luaCidades = () => Object.keys(LUA_CIDADES)
+  .filter(ia => !cidadeAtiva || ia === cidadeAtiva);
 const BASE_DIA = new Date(Date.UTC(2026,7,1));   // 2026-08-01
 const fmt = n => "R$ " + Math.round(n).toLocaleString("pt-BR");
 // tfs do Google Voos (protobuf minimo), para o link "abrir no Google Voos"
@@ -411,7 +413,7 @@ function cartoesLua(){
   document.getElementById("alertas").innerHTML = "";
   const POS = {GRU: "GRU2", GIG: "GIG2"};
   const ofertas = [];
-  for (const k of LUA_ROTAS){
+  for (const k of DEST()){
     const m = vigenteDe(k);
     if (!m) continue;
     const [ida, durS] = m.ch.split("|");
@@ -466,7 +468,7 @@ function cartoesLua(){
   let html = `<div class="painel" style="grid-column:1/-1; overflow-x:auto">
     <table class="lista"><tr><th>destino</th><th>de Brasília</th>
     <th>de São Paulo (GRU)</th><th>do Rio (GIG)</th></tr>`;
-  for (const ia of Object.keys(LUA_CIDADES)){
+  for (const ia of luaCidades()){
     const alvo = ia === "FCO" || ia === "MXP";
     html += `<tr><td${alvo ? ' style="font-weight:700"' : ""}>
       ${LUA_CIDADES[ia]}${alvo ? " *" : ""}</td>`;
@@ -735,7 +737,7 @@ function serieTemporal(){
   const series = [], leg = [];
   if (GRUPOS[grupoAtivo].lua){
     // uma linha por CIDADE: o menor preco do dia entre as tres origens
-    for (const ia of Object.keys(LUA_CIDADES)){
+    for (const ia of luaCidades()){
       const porDia = {};
       for (const pfx of ["", "GRU:", "GIG:"]){
         const d = SD[pfx + ia];
@@ -920,7 +922,7 @@ const PALETA = ["#1d5c8f","#2e7d4f","#b0701c","#b3382e","#7b5ea7","#0e7490",
 const TEMAS = {
   claro: {grid:"#e3dccd", rotulo:"#7a7264", vazio:"#efe9dc",
     cor:{LYS:"#1d5c8f", GVA:"#2e7d4f", LIS:"#b0701c", CGH:"#1d5c8f",
-         SDU:"#1d5c8f", GIG:"#2e7d4f", CNF:"#1d5c8f"},
+         SDU:"#1d5c8f", GIG:"#2e7d4f"},
     corc:{FCO:"#b3382e", MXP:"#7b5ea7", CDG:"#1d5c8f", MAD:"#b0701c",
           BCN:"#2e7d4f", BER:"#54524d", FRA:"#0e7490", LAX:"#b0487e",
           YYZ:"#4d7c0f"},
@@ -928,7 +930,7 @@ const TEMAS = {
             "#b0487e","#4d7c0f","#92400e","#155e75"]},
   escuro: {grid:"#26304a", rotulo:"#8a96ad", vazio:"#1a2233",
     cor:{LYS:"#6ab7f5", GVA:"#57c785", LIS:"#e0a53f", CGH:"#6ab7f5",
-         SDU:"#6ab7f5", GIG:"#57c785", CNF:"#6ab7f5"},
+         SDU:"#6ab7f5", GIG:"#57c785"},
     corc:{FCO:"#ef6f67", MXP:"#b79df2", CDG:"#6ab7f5", MAD:"#e0a53f",
           BCN:"#57c785", BER:"#9aa3b2", FRA:"#4fc3dd", LAX:"#ef8fc0",
           YYZ:"#a3d977"},
@@ -1110,23 +1112,47 @@ function diagnostico(){
 }
 diagnostico();
 
-/* ---------- abas de grupo e montagem ---------- */
-function abasGrupo(){
-  const el = document.getElementById("abasGrupo");
-  el.innerHTML = "";
+/* ---------- filtro de cidade e montagem ---------- */
+// Lista de cidades no alto: uma opcao por cidade acompanhada, agrupada por
+// painel; grupos com mais de uma cidade ganham tambem a opcao "todas", que
+// mostra a comparacao entre elas. A escolha fica guardada no navegador.
+function opcoesCidade(){
+  const ops = [];
   for (const [g, cfg] of Object.entries(GRUPOS)){
-    const b = document.createElement("button");
-    b.className = "aba" + (g===grupoAtivo ? " ativa" : "");
-    b.textContent = cfg.nome;
-    b.onclick = () => trocaGrupo(g);
-    el.appendChild(b);
+    const cidades = cfg.lua
+      ? Object.entries(LUA_CIDADES).map(([ia, n]) => [ia, n])
+      : cfg.destinos.map(d => [d, NOME[d]]);
+    const itens = [];
+    if (cidades.length > 1) itens.push({v: g + "|", t: cfg.nome + ": todas as cidades"});
+    for (const [ia, n] of cidades) itens.push({v: g + "|" + ia, t: n});
+    ops.push({grupo: cfg.nome, itens});
   }
+  return ops;
+}
+function montaSelect(){
+  const sel = document.getElementById("selCidade");
+  sel.innerHTML = "";
+  for (const o of opcoesCidade()){
+    const og = document.createElement("optgroup");
+    og.label = o.grupo;
+    for (const it of o.itens){
+      const op = document.createElement("option");
+      op.value = it.v; op.textContent = it.t;
+      og.appendChild(op);
+    }
+    sel.appendChild(og);
+  }
+  sel.value = grupoAtivo + "|" + (cidadeAtiva || "");
 }
 function renderGrupo(){
   const cfg = GRUPOS[grupoAtivo];
   document.getElementById("subGrupo").textContent = cfg.sub;
   document.getElementById("palpite").innerHTML = cfg.palpite;
-  abasGrupo();
+  document.getElementById("filtroGrupo").textContent = cidadeAtiva
+    ? "painel " + cfg.nome + "; mostrando só " +
+      (cfg.lua ? LUA_CIDADES[cidadeAtiva] : NOME[cidadeAtiva])
+    : "painel " + cfg.nome + "; todas as cidades do grupo";
+  montaSelect();
   cartoes();
   abasMapa(); mapa();
   serieTemporal();
@@ -1135,12 +1161,27 @@ function renderGrupo(){
   insights();
   diretas();
 }
-function trocaGrupo(g){
+function trocaCidade(v){
+  const [g, ia] = v.split("|");
+  if (!GRUPOS[g]) return;
   grupoAtivo = g;
-  mapaDest = GRUPOS[g].padrao;
-  ciaDest = GRUPOS[g].padrao;
+  cidadeAtiva = ia || null;
+  const cfg = GRUPOS[g];
+  mapaDest = cidadeAtiva || cfg.padrao;
+  ciaDest = mapaDest;
+  try { localStorage.setItem("cidade", v); } catch(e){}
   renderGrupo();
 }
+function trocaGrupo(g){ trocaCidade(g + "|"); }
+(function(){
+  let v = null;
+  try { v = localStorage.getItem("cidade"); } catch(e){}
+  if (v){
+    const [g, ia] = v.split("|");
+    if (GRUPOS[g]){ grupoAtivo = g; cidadeAtiva = ia || null; }
+  }
+  mapaDest = cidadeAtiva || GRUPOS[grupoAtivo].padrao; ciaDest = mapaDest;
+})();
 aplicaTema();
 renderGrupo();
 window.addEventListener("resize", ()=>{ serieTemporal(); porCia(); });

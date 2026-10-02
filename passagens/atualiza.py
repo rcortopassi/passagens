@@ -21,7 +21,7 @@ from pathlib import Path
 BASE = Path(__file__).parent
 sys.path.insert(0, str(BASE))
 
-DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG", "CNF")
+DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG")
 NOME = {"LYS": "Lyon", "GVA": "Genebra", "LIS": "Lisboa",
         "CGH": "Congonhas", "SDU": "Santos Dumont", "GIG": "Galeão",
         "CNF": "Belo Horizonte"}

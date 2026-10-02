@@ -5,7 +5,8 @@
     FIXA da viagem de 2027;
   - Sao Paulo: Congonhas (CGH), 1 adulto;
   - Rio de Janeiro: Santos Dumont (SDU) e Galeao (GIG), 2 adultos;
-  - Belo Horizonte: Confins (CNF), 2 adultos, DATA MARCADA.
+  - Belo Horizonte (CNF) foi acompanhado de 17/08 a 02/10/2026; passagem comprada,
+    saiu da coleta (historico preservado).
 As abas de Sao Paulo e Rio nao tem viagem marcada: o objetivo e ir QUANDO
 ESTIVER BARATO. A janela delas e ROLANTE (partidas de amanha ate ROL_DIAS a
 frente, estadias curtas) e anda sozinha a cada rodada. Belo Horizonte e o
@@ -49,7 +50,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 HISTORICO = os.path.join(AQUI, "historico.json")
 PUBLICADO = "https://rafaelcortopassi.pythonanywhere.com/passagens/historico.json"
 
-DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG", "CNF")
+DESTINOS = ("LYS", "GVA", "LIS", "CGH", "SDU", "GIG")
 NOME_DESTINO = {"LYS": "Lyon", "GVA": "Genebra", "LIS": "Lisboa",
                 "CGH": "Congonhas", "SDU": "Santos Dumont", "GIG": "Galeão",
                 "CNF": "Belo Horizonte"}
@@ -81,7 +82,9 @@ ROL_DUR_MIN, ROL_DUR_MAX = 2, 7    # noites (escapada curta a uma semana)
 # media. Confins (CNF) e o unico aeroporto util: BSB-Pampulha (PLU) nao tem
 # voo (conferido em 17/08/2026, em tres datas diferentes) e o codigo de
 # metropole BHZ nao e aceito por esta RPC.
-FIXOS = {"CNF": (date(2027, 1, 8), date(2027, 1, 10))}
+# Belo Horizonte saiu em 02/10/2026 (passagem comprada). Dicionario vazio
+# mantido para quando entrar outra viagem de data marcada.
+FIXOS = {}
 
 # --- Aba Lua de mel (21/08/2026): caca a oportunidade para a viagem do casal.
 # Roma e o alvo (qualquer lugar da Italia serve: FCO e MXP), com comparadores
